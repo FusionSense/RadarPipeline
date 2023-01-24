@@ -1,0 +1,4 @@
+name: capstone_env
+channels:
+  - defaults
+prefix: /tmp/anaconda3/envs/capstone_env
