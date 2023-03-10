@@ -6,7 +6,7 @@
 #include <strings.h> // bzero()
 #include <sys/socket.h>
 #include <unistd.h> // read(), write(), close()
-#define CUBE 512 * 64 * 12
+#include "../network_params.h"
 #define PORT 889 // 843
 #define SA struct sockaddr
 
