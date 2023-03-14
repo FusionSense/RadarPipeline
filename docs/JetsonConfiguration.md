@@ -28,4 +28,5 @@ In order to configure the Jetson Nano with this software, there are two options.
 
 ## Extra Configuration Steps
 
-You may also choose to add extra users, github accounts...
+- You may also choose to add extra users, github accounts...
+- You must still configure Github, CMake and OpenCV on your personal computer if you plan to use it as the server
