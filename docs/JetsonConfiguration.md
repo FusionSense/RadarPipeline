@@ -1,4 +1,9 @@
 # NVIDIA Jetson Nano Configuration
+
+Radar Node Wiring             |  Assembled Radar Node
+:-------------------------:|:-------------------------:
+<img src="../assets/img/jetson_wiring.png" width="400">  |  <img src="../assets/img/jetson_assembled.png" width="300">
+
 A few additions to Jetson Linux (Ubuntu 20.04) are required for this project. These include the following drivers and libraries:
 
 - [WiFi connection](https://www.amazon.com/dp/B07TFT876R?psc=1&ref=ppx_yo2ov_dt_b_product_details)
