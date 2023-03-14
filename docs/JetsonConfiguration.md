@@ -1,14 +1,14 @@
 # NVIDIA Jetson Nano Configuration
 A few additions to Jetson Linux (Ubuntu 20.04) are required for this project. These include the following drivers and libraries:
 
-- WiFi connection
-- FTDI drivers
-- cmake
-- OpenCV
-- Github access (ssh)
-- CLI stuff
-- mmWaveLink
-- Our Github repos
+- [WiFi connection](https://www.amazon.com/dp/B07TFT876R?psc=1&ref=ppx_yo2ov_dt_b_product_details)
+- [FTDI drivers]()
+- [CMake](https://cmake.org/)
+- [OpenCV](https://opencv.org/)
+- [Github SSH keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+- [DCA CLI](https://github.com/Real-Time-MIMO/mmwaveAPI)
+- [mmWaveLink](https://github.com/Real-Time-MIMO/openradar_mmwave_utils)
+- [Our Github repositories](https://github.com/Real-Time-MIMO)
 
 In order to configure the Jetson Nano with this software, there are two options. (1) Running a shell script with all installation commands or (2) flashing an SD card with the pre-prepared Linux image. The first option is better if you want to have the most updated version of Jetson Linux and additional software. The second option is better if you want to guarantee everything works out of the box without any hassle (I would choose this option). After each Jetson has been configured, you must change their static IP addresses to avoid network confusion.
 
