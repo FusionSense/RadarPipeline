@@ -2,8 +2,8 @@
 
 #define ROUTER_IP
 #define GATEWAY_IP
-#define TCP_PORT
-#define SSH_PORT 491
+#define SERVER_TCP_PORT
+#define SERVER_SSH_PORT 491
 
 ////////// Data details //////////
 
@@ -28,3 +28,8 @@
 #define NODE_B_SSH_PORT 491
 
 // Add logic to assign params based on a another config file
+
+#define CLIENT_IP
+#define CLIENT_TCP_PORT
+#define CLIENT_SSH_PORT
+
