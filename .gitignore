@@ -181,3 +181,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+### Binaries ###
+client
+server
