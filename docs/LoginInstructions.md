@@ -16,6 +16,7 @@ There is a computer in the Naples lab called `eelabgpu1`. It currently is runnin
         User fusionsense
     ```
 4. Use VS Code to remotely login to the lab computer and enter the password (in the Google Drive).
+5. Confirm that the WiFi adapter is plugged into the back of the computer.
 
 ## Step 2: Access the individual Nodes
 1. Use the following commands depending on which node you want to login to. SSH authentications keys should already be configured so no passowrd will be required.

@@ -23,7 +23,7 @@ In order to configure the Jetson Nano with this software, there are two options.
 
 ## (Option 2) Flash the Pre-Prepared Image
 
-1. Follow these instructions for flashing the SD card, except use `JetsonImage_X.X.zip` instead of `jetson_nano_devkit_sd_card.zip`
+1. Follow [these instructions](https://developer.nvidia.com/embedded/learn/get-started-jetson-nano-devkit#write) for flashing the SD card, except use `JetsonImage_X.X.zip` instead of `jetson_nano_devkit_sd_card.zip`
 2. Insert the SD card into the Jetson and enjoy!
 
 ## Extra Configuration Steps
