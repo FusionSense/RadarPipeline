@@ -39,8 +39,8 @@ void func(int connfd)
 
             memcpy(buff, temp_buff, sizeof(buff));
             timer = (float)(end - start) / CLOCKS_PER_SEC;
-            mbps = sizeof(buff) * 8 / 1048576 / (float)timer;
-            printf("From client: %.1f KB - %.6fs - %.3f Mbps\n", (float)status / 1024, timer, mbps);
+            mbps = (float)sizeof(buff) * 8 / 1048576 / (float)timer;
+            printf("From client: %.1f KB \t %.6fs \t %.3f Mbps\n", (float)status / 1024, timer, mbps);
             
             //Start new timer
             start = clock();
