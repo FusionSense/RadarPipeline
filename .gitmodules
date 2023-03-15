@@ -4,3 +4,9 @@
 [submodule "extern/googletest"]
 	path = extern/googletest
 	url = https://github.com/google/googletest
+[submodule "extern/DCA1000"]
+	path = extern/DCA1000
+	url = https://github.com/Real-Time-MIMO/DCA1000
+[submodule "extern/openradar_mmwave_utils"]
+	path = extern/openradar_mmwave_utils
+	url = https://github.com/openradarinitiative/openradar_mmwave_utils
