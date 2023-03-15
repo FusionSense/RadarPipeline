@@ -24,7 +24,7 @@ In order to configure the Jetson Nano with this software, there are two options.
 3. Go through the initial setup process.
 4. Get the shell script `jetsonconfig.sh` on the Jetson via USB drive and place it on the Desktop. Eject the drive.
 5. Plug in the WiFi adapter
-6. Open a terminal and run this command while in the Naples  EE Capstone Lab `cd Desktop; ./jetsonconfig.sh; rm jetsonconfig.sh; cd` (the script contains detailed information on each installation step)
+6. Open a terminal and run this command while in the Naples  EE Capstone Lab `cd Desktop; chmod +x jetsonconfig.sh; ./jetsonconfig.sh; rm jetsonconfig.sh; cd` (the script contains detailed information on each installation step)
 
 ## (Option 2) Flash the Pre-Prepared Image
 
