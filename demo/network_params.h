@@ -8,7 +8,7 @@
 ////////// Data details //////////
 
 // #define CUBE 512 * 64 * 12
-#define CUBE 65535
+#define CUBE 32768
 
 ///////// Node A details /////////
 
