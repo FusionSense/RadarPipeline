@@ -14,3 +14,7 @@ sudo ufw allow 8080/tcp
 
 # SSH Connection firewall
 sudo ufw allow 491/tcp
+
+# Export FilePath
+LD_LIBRARY_PATH=##########
+export LD_LIBRARY_PATH
