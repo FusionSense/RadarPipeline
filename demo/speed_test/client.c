@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h> // read(), write(), close()
 #include "../network_params.h"
-#define PORT 889 // 843
+#define PORT 8080
 #define SA struct sockaddr
 
 void func(int sockfd)
@@ -23,7 +23,7 @@ void func(int sockfd)
             buff[f] = rand() / 128;
         }
 
-        write(sockfd, buff, sizeof(buff));
+        send(sockfd, buff, sizeof(buff), 0);
     }
 }
  

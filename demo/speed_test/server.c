@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
 #include "../network_params.h"
-#define PORT 889 // 843
+#define PORT 8080
 #define SA struct sockaddr
    
 // Function designed for chat between client and server.
@@ -24,10 +24,12 @@ void func(int connfd)
     clock_t end;
 
     float mbps;
+    float timer;
+    int status;
     
     for (;;) {
         // Reads from the TCP connection
-        read(connfd, temp_buff, sizeof(buff));
+        status = recv(connfd, temp_buff, sizeof(buff), 0);
 
         // Checks to see if the packet is new
         if(memcmp(temp_buff, buff, sizeof(buff)) != 0)
@@ -36,8 +38,9 @@ void func(int connfd)
             end = clock();
 
             memcpy(buff, temp_buff, sizeof(buff));
-            mbps = sizeof(buff) * 8 / 1000000 / (float)(end - start) * CLOCKS_PER_SEC;
-            printf("From client: %.1f kB - %.6fs - %.3f Mbps\n", (float)sizeof(buff) / 1000, time, mbps);
+            timer = (float)(end - start) / CLOCKS_PER_SEC;
+            mbps = sizeof(buff) * 8 / 1048576 / timer;
+            printf("From client: %.1f KB - %.6fs - %.3f Mbps\n", (float)status / 1024, time, mbps);
             
             //Start new timer
             start = clock();
