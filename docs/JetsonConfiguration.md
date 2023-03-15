@@ -24,7 +24,9 @@ In order to configure the Jetson Nano with this software, there are two options.
 3. Go through the initial setup process.
 4. Get the shell script `jetsonconfig.sh` on the Jetson via USB drive and place it on the Desktop. Eject the drive.
 5. Plug in the WiFi adapter
-6. Open a terminal and run this command while in the Naples  EE Capstone Lab `cd Desktop; chmod +x jetsonconfig.sh; ./jetsonconfig.sh; rm jetsonconfig.sh; cd` (the script contains detailed information on each installation step)
+6. Open a terminal and run this command while in the Naples  EE Capstone Lab `cd Desktop; chmod +x jetsonconfig.sh; ./jetsonconfig.sh` (the script contains detailed information on each installation step)
+7. Follow the instructions given by the script.
+8. Run `rm jetsonconfig.sh; cd`
 
 ## (Option 2) Flash the Pre-Prepared Image
 
@@ -33,6 +35,5 @@ In order to configure the Jetson Nano with this software, there are two options.
 
 ## Extra Configuration Steps
 
-- Change static IP addresses...
-- You may also choose to add extra users, github accounts...
+- The script configures the Github user as `fusionsense@gmail.com`. You may also choose to add extra Linux users with their own Github accounts. We suggest using multiple users / accounts for development and the team user / account for demonstrations.
 - You must still configure Github, CMake and OpenCV on your personal computer if you plan to use it as the server
