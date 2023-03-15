@@ -9,7 +9,7 @@
 #include <unistd.h> // read(), write(), close()
 #include <opencv2/opencv.hpp>
 #include "../network_params.h"
-#define PORT 889 // 843
+#define PORT 8080
 #define SA struct sockaddr
 
 using namespace std;
@@ -31,7 +31,7 @@ void func(int connfd)
     
     for (;;) {
         // Reads from the TCP connection
-        read(connfd, temp_buff, sizeof(buff));
+        recv(connfd, temp_buff, sizeof(buff), 0);
 
         // Checks to see if the packet is new
         if(memcmp(temp_buff, buff, sizeof(buff)) != 0)
