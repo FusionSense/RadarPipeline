@@ -26,9 +26,9 @@
 
 ///////// Node C details /////////
 
-#define NODE_B_IP "192.168.1.103"
-#define NODE_B_TCP_PORT 
-#define NODE_B_SSH_PORT "491"
+#define NODE_C_IP "192.168.1.103"
+#define NODE_C_TCP_PORT 
+#define NODE_C_SSH_PORT "491"
 
 // Add logic to assign params based on a another config file
 
