@@ -4,7 +4,7 @@ using namespace std;
 
 ////// Data transfer //////
 
-// comment here
+// Calculates speed of incoming data
 void calc_speed(int connfd)
 {
     uint8_t buff[CUBE];
@@ -41,6 +41,7 @@ void calc_speed(int connfd)
     }
 }
 
+// Sends random packets of data of size CUBE
 void send_rand(int sockfd)
 {
     uint8_t buff[CUBE];
@@ -60,6 +61,7 @@ void send_rand(int sockfd)
 
 ////// Connection management //////
 
+// Starts the server connection
 tuple<int,int> host()
 {
     int sockfd, connfd;
@@ -110,6 +112,7 @@ tuple<int,int> host()
         return make_tuple(sockfd, connfd);
 }
 
+// Connects to the host server
 int connect()
 {
     int sockfd, connfd;
