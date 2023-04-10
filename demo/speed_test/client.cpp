@@ -6,8 +6,8 @@
 #include <strings.h> // bzero()
 #include <sys/socket.h>
 #include <unistd.h> // read(), write(), close()
-#include "../network_params.h"
-#define PORT 8080
+#include SERVER_PARAMS
+#include CLIENT_PARAMS
 #define SA struct sockaddr
 
 void func(int sockfd)
@@ -45,7 +45,7 @@ int main()
     // assign IP, PORT
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    servaddr.sin_port = htons(PORT);
+    servaddr.sin_port = htons(TCP_PORT);
  
     // connect the client socket to server socket
     if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr))

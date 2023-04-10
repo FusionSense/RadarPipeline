@@ -3,13 +3,22 @@ project( speed_test )
 find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
+# Include directories
+include_directories("${CMAKE_SOURCE_DIR}/../"
+    "${CMAKE_SOURCE_DIR}/../../"
+    "${CMAKE_SOURCE_DIR}/../../network")
+
 # Define the variable
 set(CONFIG "A" CACHE STRING "Which configuration the executables are compiled for.")
 set(IP "127.0.0.1" CACHE STRING "Server IP address.")
+set(SERVER_PARAMS "network/server.hpp" CACHE STRING "Server parameters.")
+set(CLIENT_PARAMS "network/node_${CONFIG}.hpp" CACHE STRING "Client parameters.")
 
 # Pass the variable to the source code
 add_definitions(-DCONFIG="${CONFIG}")
 add_definitions(-DIP="${IP}")
+add_definitions(-DSERVER_PARAMS="${SERVER_PARAMS}")
+add_definitions(-DCLIENT_PARAMS="${CLIENT_PARAMS}")
 
 # Check for correct input
 if(((CONFIG STREQUAL "A") OR (CONFIG STREQUAL "B") OR (CONFIG STREQUAL "C")))

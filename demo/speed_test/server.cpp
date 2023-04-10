@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
-#include "../network_params.h"
-#define PORT 8080
+#include SERVER_PARAMS
+#include CLIENT_PARAMS
 #define SA struct sockaddr
    
 // Function designed for chat between client and server.
@@ -68,7 +68,7 @@ int main()
     // assign IP, PORT
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(PORT);
+    servaddr.sin_port = htons(TCP_PORT);
    
     // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
