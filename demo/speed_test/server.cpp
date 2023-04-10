@@ -1,6 +1,5 @@
 #include "rpl/implementation.cpp"
-   
-// Driver function
+
 int main()
 {
     int sockfd, connfd;
