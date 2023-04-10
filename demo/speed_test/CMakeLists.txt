@@ -6,7 +6,9 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 # Include directories
 include_directories("${CMAKE_SOURCE_DIR}/../"
     "${CMAKE_SOURCE_DIR}/../../"
-    "${CMAKE_SOURCE_DIR}/../../network")
+    "${CMAKE_SOURCE_DIR}/../../network"
+    "${CMAKE_SOURCE_DIR}/../../src"
+    "${CMAKE_SOURCE_DIR}/../../src/rpl")
 
 # Define the variable
 set(CONFIG "A" CACHE STRING "Which configuration the executables are compiled for.")

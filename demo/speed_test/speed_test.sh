@@ -1,0 +1,1 @@
+# bash script for launching/closing CLI, mmWaveLink, demo
