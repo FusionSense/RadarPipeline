@@ -154,11 +154,14 @@ class RadarBlock
         uint frame = 0;
 
         uint* inputframeptr;
+        int* inputbufferptr;
+
         uint lastframe;
 
         // Public functions
         // Class constructor
-        RadarBlock(int size) : outputbuffer(new int[size]), buffersize(size) 
+        RadarBlock(int size_in, int size_out) : outputbuffer(new int[size_out]), outputsize(size_out),
+                                                inputsize(size_in)
         {
             printf("Constructor called.\n");
         }
@@ -170,8 +173,14 @@ class RadarBlock
             delete[] outputbuffer; 
         }
 
-        // Sets the previous frame pointer
-        void setInputPointer(uint* ptr)
+        // Sets the input buffer pointer
+        void setBufferPointer(int* ptr)
+        {
+            inputbufferptr = ptr;
+        }
+
+        // Sets the input frame pointer
+        void setFramePointer(uint* ptr)
         {
             inputframeptr = ptr;
             lastframe = *ptr;
@@ -190,7 +199,7 @@ class RadarBlock
         }
 
         // Iterates
-        void iteration(int n)
+        void iteration()
         {
             for(;;)
             {
@@ -202,8 +211,10 @@ class RadarBlock
 
     private:
         // Private variables
+        int outputsize;
+        int inputsize;
         int* outputbuffer;
-        int buffersize;
+        // int*[inputsize] inputbuffer;
 
         // Private functions
         // Listens for previous block (overwritten in some cases)
