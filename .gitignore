@@ -185,3 +185,6 @@ dkms.conf
 ### Binaries ###
 client
 server
+
+### Build directories ###
+*/build_*/
