@@ -1,5 +1,3 @@
-// #include "private-header.hpp"
-
 using namespace std;
 
 ////// Data transfer //////
@@ -148,3 +146,88 @@ int connect()
 
 
 ////// 
+
+class RadarBlock
+{
+    public:
+        // Public variables
+        uint frame = 0;
+
+        uint* inputframeptr;
+        uint lastframe;
+
+        // Public functions
+        // Class constructor
+        RadarBlock(int size) : outputbuffer(new int[size]), buffersize(size) 
+        {
+            printf("Constructor called.\n");
+        }
+
+        // Class deconstructor
+        ~RadarBlock()
+        {
+            printf("\nDestructor called.");
+            delete[] outputbuffer; 
+        }
+
+        // Sets the previous frame pointer
+        void setInputPointer(uint* ptr)
+        {
+            inputframeptr = ptr;
+            lastframe = *ptr;
+        }
+
+        // Retrieve outputbuffer pointer
+        int* getBufferPointer()
+        {
+            return outputbuffer;
+        }
+
+        // Retrieve frame pointer
+        uint* getFramePointer()
+        {
+            return &frame;
+        }
+
+        // Iterates
+        void iteration(int n)
+        {
+            for(;;)
+            {
+                listen();
+                process();
+                increment_frame();
+            }
+        }
+
+    private:
+        // Private variables
+        int* outputbuffer;
+        int buffersize;
+
+        // Private functions
+        // Listens for previous block (overwritten in some cases)
+        void listen()
+        {
+            for(;;)
+            {
+                if(*inputframeptr != lastframe)
+                {
+                    lastframe = *inputframeptr;
+                    break;
+                }
+            }
+        }
+
+        // Complete desired calculations / data manipulation
+        void process()
+        {
+            printf("Process done!\n");
+        }
+
+        // Increments frame count
+        void increment_frame()
+        {
+            frame++;
+        }
+};
