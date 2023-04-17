@@ -101,6 +101,15 @@ class RadarBlock
         }
 };
 
+// Recieves UDP packets from DCA
+class DataAquisition : public RadarBlock
+{
+    void process()
+    {
+        printf("Data aquired!");
+    }
+};
+
 ////// Data transfer //////
 
 // Calculates speed of incoming data
