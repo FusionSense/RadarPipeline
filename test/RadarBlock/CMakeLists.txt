@@ -25,10 +25,10 @@ endif()
 
 # Include directories
 include_directories("${CMAKE_SOURCE_DIR}/"
-    "${CMAKE_SOURCE_DIR}/../"
-    "${CMAKE_SOURCE_DIR}/../network"
-    "${CMAKE_SOURCE_DIR}/../src"
-    "${CMAKE_SOURCE_DIR}/../src/rpl")
+    "${CMAKE_SOURCE_DIR}/../../"
+    "${CMAKE_SOURCE_DIR}/../../network"
+    "${CMAKE_SOURCE_DIR}/../../src"
+    "${CMAKE_SOURCE_DIR}/../../src/rpl")
 
 # Link libraries
 add_executable( test test.cpp )

@@ -1,5 +1,106 @@
 using namespace std;
 
+// Base class used for other modules
+class RadarBlock
+{
+
+    int inputsize;
+    int outputsize;
+
+    public:
+        // Public variables
+        uint frame = 0;
+
+        uint* inputframeptr;
+        int* inputbufferptr;
+
+        uint lastframe;
+
+        // Public functions
+        // Class constructor
+        RadarBlock(int size_in, int size_out) : outputbuffer(new int[size_out])
+        {   
+            inputsize = size_in;
+            outputsize = size_out;
+
+            printf("New %s created.\n", typeid(*this).name());
+        }
+
+        // Class deconstructor
+        ~RadarBlock()
+        {
+            delete[] outputbuffer; 
+
+            printf("%s destroyed.\n", typeid(*this).name());
+        }
+
+        // Sets the input buffer pointer
+        void setBufferPointer(int* ptr)
+        {
+            inputbufferptr = ptr;
+        }
+
+        // Sets the input frame pointer
+        void setFramePointer(uint* ptr)
+        {
+            inputframeptr = ptr;
+            lastframe = *ptr;
+        }
+
+        // Retrieve outputbuffer pointer
+        int* getBufferPointer()
+        {
+            return outputbuffer;
+        }
+
+        // Retrieve frame pointer
+        uint* getFramePointer()
+        {
+            return &frame;
+        }
+
+        // Iterates
+        void iteration()
+        {
+            for(;;)
+            {
+                listen();
+                process();
+                increment_frame();
+            }
+        }
+
+    private:
+        // Private variables
+        int* outputbuffer;
+
+        // Private functions
+        // Listens for previous block (overwritten in some cases)
+        void listen()
+        {
+            for(;;)
+            {
+                if(*inputframeptr != lastframe)
+                {
+                    lastframe = *inputframeptr;
+                    break;
+                }
+            }
+        }
+
+        // Complete desired calculations / data manipulation
+        void process()
+        {
+            printf("Process done!\n");
+        }
+
+        // Increments frame count
+        void increment_frame()
+        {
+            frame++;
+        }
+};
+
 ////// Data transfer //////
 
 // Calculates speed of incoming data
@@ -142,103 +243,3 @@ int connect()
 
     return sockfd;
 }
-
-
-
-////// 
-
-class RadarBlock
-{
-    public:
-        // Public variables
-        uint frame = 0;
-
-        uint* inputframeptr;
-        int* inputbufferptr;
-
-        uint lastframe;
-
-        // Public functions
-        // Class constructor
-        RadarBlock(int size_in, int size_out) : outputbuffer(new int[size_out]), outputsize(size_out),
-                                                inputsize(size_in)
-        {
-            printf("Constructor called.\n");
-        }
-
-        // Class deconstructor
-        ~RadarBlock()
-        {
-            printf("\nDestructor called.");
-            delete[] outputbuffer; 
-        }
-
-        // Sets the input buffer pointer
-        void setBufferPointer(int* ptr)
-        {
-            inputbufferptr = ptr;
-        }
-
-        // Sets the input frame pointer
-        void setFramePointer(uint* ptr)
-        {
-            inputframeptr = ptr;
-            lastframe = *ptr;
-        }
-
-        // Retrieve outputbuffer pointer
-        int* getBufferPointer()
-        {
-            return outputbuffer;
-        }
-
-        // Retrieve frame pointer
-        uint* getFramePointer()
-        {
-            return &frame;
-        }
-
-        // Iterates
-        void iteration()
-        {
-            for(;;)
-            {
-                listen();
-                process();
-                increment_frame();
-            }
-        }
-
-    private:
-        // Private variables
-        int outputsize;
-        int inputsize;
-        int* outputbuffer;
-        // int*[inputsize] inputbuffer;
-
-        // Private functions
-        // Listens for previous block (overwritten in some cases)
-        void listen()
-        {
-            for(;;)
-            {
-                if(*inputframeptr != lastframe)
-                {
-                    lastframe = *inputframeptr;
-                    break;
-                }
-            }
-        }
-
-        // Complete desired calculations / data manipulation
-        void process()
-        {
-            printf("Process done!\n");
-        }
-
-        // Increments frame count
-        void increment_frame()
-        {
-            frame++;
-        }
-};
