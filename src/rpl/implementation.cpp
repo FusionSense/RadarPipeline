@@ -101,7 +101,14 @@ class RadarBlock
         }
 };
 
-////// Data transfer //////
+// Processes IQ data to make Range-Doppler map
+class RangeDoppler : public RadarBlock
+{
+    void process()
+    {
+        printf("Range-Doppler map done!");
+    }
+};
 
 // Calculates speed of incoming data
 void calc_speed(int connfd)
