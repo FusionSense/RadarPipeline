@@ -3,7 +3,6 @@ using namespace std;
 // Base class used for other modules
 class RadarBlock
 {
-
     int inputsize;
     int outputsize;
 
@@ -100,6 +99,16 @@ class RadarBlock
             frame++;
         }
 };
+
+// Manages TCP connection for the client
+class ClientManager : public RadarBlock
+{
+    void process()
+    {
+        printf("Packet sent!");
+    }
+};
+
 
 ////// Data transfer //////
 
