@@ -1,4 +1,5 @@
 using namespace std;
+using namespace cv;
 
 // Base class used for other modules
 class RadarBlock
@@ -106,7 +107,18 @@ class Visualizer : public RadarBlock
 {
     void process()
     {
-        printf("Visualiziation made!");
+        // Create a 64x512 matrix with the data buffer
+        Mat image(64, 512, CV_8UC1, (void*)dataBuffer);
+        
+        // Convert the matrix to a color image for visualization
+        Mat colorImage;
+        applyColorMap(image, colorImage, COLORMAP_JET);
+        
+        // Display the color image
+        imshow("Data Buffer Plot", colorImage);
+        waitKey(0);
+
+        // printf("Visualiziation made!");
     }
 };
 
