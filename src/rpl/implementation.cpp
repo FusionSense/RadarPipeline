@@ -101,6 +101,15 @@ class RadarBlock
         }
 };
 
+// Visualizes range-doppler data
+class Visualizer : public RadarBlock
+{
+    void process()
+    {
+        printf("Visualiziation made!");
+    }
+};
+
 ////// Data transfer //////
 
 // Calculates speed of incoming data
