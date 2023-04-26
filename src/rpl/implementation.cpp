@@ -1,4 +1,6 @@
 using namespace std;
+
+#include <opencv2/opencv.hpp>
 using namespace cv;
 
 // Base class used for other modules
@@ -108,7 +110,7 @@ class Visualizer : public RadarBlock
     void process()
     {
         // Create a 64x512 matrix with the data buffer
-        Mat image(64, 512, CV_8UC1, (void*)dataBuffer);
+        Mat image(64, 512, CV_8UC1, (void*)inputbufferptr, 512);
         
         // Convert the matrix to a color image for visualization
         Mat colorImage;
