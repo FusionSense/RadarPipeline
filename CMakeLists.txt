@@ -1,15 +1,10 @@
-make_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.5)
+project( RadarPipeline )
 
-project(RadarPipeline)
+# Add the include directory to the include path
+include_directories(${CMAKE_SOURCE_DIR}/src/rpl)
 
-# Set C++ standard to C++11
-set(CMAKE_CXX_STANDARD 11)
-
-# Find required libraries
-find_package(OpenCV REQUIRED)
-
-# Add subdirectories
+# Add the subdirectories
 add_subdirectory(src)
-add_subdirectory(demo)
 add_subdirectory(test)
-
+add_subdirectory(demo)
