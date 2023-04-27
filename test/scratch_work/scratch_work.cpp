@@ -1,6 +1,7 @@
 #include <iostream>
 #include <complex>
 #include <fstream>
+#include <math.h>
 
 #define FAST_TIME 512
 #define SLOW_TIME 64
@@ -8,6 +9,13 @@
 #define TX 3
 #define IQ 2
 #define SIZE TX*RX*IQ*FAST_TIME*SLOW_TIME
+#define M_PI 3.14159265358979323846
+
+void blackman_filter(float* filter_coeff, int size){
+    for(int i = 0; i<size; i++){
+        filter_coeff[i] = 0.42 - 0.5*cos(2*i*M_PI/(size-1))+0.08*cos(4*i*M_PI/(size-1));
+    }
+}
 
 void readFile(const std::string& filename, float* arr, int size) {
     std::ifstream file(filename);
@@ -53,9 +61,9 @@ int main() {
     // Create a 1D float array
     float adc_data[SIZE] = {0};
     int indices[5] = {0};
-    auto rdm_data = new _Float16 [IQ][FAST_TIME][SLOW_TIME][RX][TX];
+    auto rdm_data = new float [IQ][FAST_TIME][SLOW_TIME][RX][TX];
 
-    readFile("/Users/bindingoath/Documents/CAPSTONE/CODEBASE/RadarPipeline/test/data/adc_data/adc_data00.txt", adc_data, SIZE);
+    readFile("../data/adc_data/adc_data00.txt", adc_data, SIZE);
     
     // get the mapped indices, then assign elements from raw 1D adc data into rdm 5D data cube;
     for (int i = 0; i<SIZE; i++){
@@ -103,6 +111,14 @@ int main() {
 
     std::cout << rdm_data_complex[0][0][0][0] << std::endl;
     
+    //TESTING FILTER COEFFICIENTS
+    float blackman[FAST_TIME] = {0};
+    blackman_filter(blackman, FAST_TIME);
+
+    for(int i=0; i<FAST_TIME; i++){
+        std::cout<<blackman[i]<<"  | " << i+1 <<std::endl;
+    }
+
     return 0;
 }
 
