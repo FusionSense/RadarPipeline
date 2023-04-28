@@ -1,21 +1,17 @@
 #include <iostream>
 #include <complex>
 #include <fstream>
-#include <math.h>
+
+#include <complex.h>
+#include <fftw3.h>
 
 #define FAST_TIME 512
 #define SLOW_TIME 64
 #define RX 4
 #define TX 3
 #define IQ 2
-#define SIZE TX*RX*IQ*FAST_TIME*SLOW_TIME
-#define M_PI 3.14159265358979323846
-
-void blackman_filter(float* filter_coeff, int size){
-    for(int i = 0; i<size; i++){
-        filter_coeff[i] = 0.42 - 0.5*cos(2*i*M_PI/(size-1))+0.08*cos(4*i*M_PI/(size-1));
-    }
-}
+#define SIZE_W_IQ TX*RX*FAST_TIME*SLOW_TIME*IQ
+#define SIZE TX*RX*FAST_TIME*SLOW_TIME
 
 void readFile(const std::string& filename, float* arr, int size) {
     std::ifstream file(filename);
@@ -40,88 +36,68 @@ void readFile(const std::string& filename, float* arr, int size) {
 }
 
 // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
-void getIndices(int index_1D, int* indices, int rx, int iq, int fast_time, int tx, int slow_time){
+void getIndices(int index_1D, int* indices){
+  int iq=2;
   
-    int i0 = index_1D/(rx*iq*fast_time*tx);
-    int i1 = index_1D%(rx*iq*fast_time*tx);
-    int i2 = i1%(rx*iq*fast_time);
-    int i3 = i2%(rx*iq);
-    int i4 = i3%(rx);
+  int i0 = index_1D/(RX*IQ*FAST_TIME*TX);
+  int i1 = index_1D%(RX*IQ*FAST_TIME*TX);
+  int i2 = i1%(RX*IQ*FAST_TIME);
+  int i3 = i2%(RX*IQ);
+  int i4 = i3%(RX);
+  
+  indices[2] = i0;                    // SLOW_TIME | Chirp#
+  indices[0] = i1/(RX*IQ*FAST_TIME);  // TX#
+  indices[3] = i2/(RX*IQ);            // FAST_TIME | Range#
+  indices[4] = i3/(RX);                 // IQ
+  indices[1] = i4;                    // RX#
+}
 
-    indices[2] = i0;                    // SLOW_TIME | Chirp#
-    indices[4] = i1/(rx*iq*fast_time);  // TX#
-    indices[1] = i2/(rx*iq);            // FAST_TIME | Range#
-    indices[0] = i3/rx;                 // IQ
-    indices[3] = i4;                    // RX#
+void shape_cube(float* in, float* mid, std::complex<float>* out) {
+  
+  int rx=0;
+  int tx=0;
+  int iq=0;
+  int fast_time=0;
+  int slow_time=0;
+
+  int indices[5] = {0};
+  
+  for (int i =0; i<SIZE_W_IQ; i++) {
+    getIndices(i, indices);
+    tx=indices[0]*RX*SLOW_TIME*FAST_TIME*IQ;
+    rx=indices[1]*SLOW_TIME*FAST_TIME*IQ;
+    slow_time=indices[2]*FAST_TIME*IQ;
+    fast_time=indices[3]*IQ;
+    iq=indices[4];
+    mid[tx+rx+slow_time+fast_time+iq]=in[i];
+  }
+
+  for(int i=0; i<SIZE; i++){
+    out[i]=std::complex<float>(mid[2*i+0], mid[2*i+1]);
+  }
+
 }
 
 // int to_index(int RX, int TX, int SLOW_TIME, int FAST_TIME) 
 
 int main() {
     // Create a 1D float array
-    float adc_data[SIZE] = {0};
-    int indices[5] = {0};
-    auto rdm_data = new float [IQ][FAST_TIME][SLOW_TIME][RX][TX];
-
-    readFile("../data/adc_data/adc_data00.txt", adc_data, SIZE);
+  auto adc_data = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+  auto adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+  int indices[5] = {0};
+  int rx=0;
+  int tx=0;
+  int iq=0;
+  int fast_time=0;
+  int slow_time=0;
+  
+  auto rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE*sizeof(std::complex<float>)));
+  
+  readFile("../data/adc_data/adc_data00.txt", adc_data, SIZE_W_IQ);
+  
+  shape_cube(adc_data, adc_data_reshaped, rdm_data);
+  
+  std::cout << rdm_data[0] << std::endl;
     
-    // get the mapped indices, then assign elements from raw 1D adc data into rdm 5D data cube;
-    for (int i = 0; i<SIZE; i++){
-        // std::cout <<"Index = "<< i << ": "<< adc_data[i] << std::endl;
-        getIndices(i, indices, RX, IQ, FAST_TIME, TX, SLOW_TIME);
-        // std::cout << "IQ: " << indices[0]+1 << std::endl;
-        // std::cout << "RX: " << indices[3]+1 << std::endl;
-        // std::cout << "Fast: " << indices[1]+1 << std::endl;
-        // std::cout << "Chirp: " << indices[2]+1 << std::endl;
-        // std::cout << "TX: " << indices[4]+1 << std::endl;
-        // std::cout << indices[0] << indices[1]<< indices[2] << indices[3] << indices[4] << std::endl;
-        // std::cout << "" << std::endl;
-        rdm_data[indices[0]][indices[1]][indices[2]][indices[3]][indices[4]] = adc_data[i];
-    }
-
-    // std::complex<float> dummy[2];
-    // dummy[1] = std::complex<float>(rdm_data[0][0][0][0][0], rdm_data[1][0][0][0][0]);    
-    // std::cout << dummy[1] << std::endl;
-
-
-
-    // time to combine the I and Q into a complex rdm 4D data cube
-    auto rdm_data_complex = new std::complex<float>[FAST_TIME][SLOW_TIME][RX][TX];
-
-    //ALLOCATE MEMORY
-    // std::complex<float> ****rdm_data_complex=(std::complex<float>****)calloc(FAST_TIME,SIZEof(float****));
-    // for(int i = 0 ; i < FAST_TIME; i++){
-    //     for(int j = 0 ; j < SLOW_TIME; j++){
-    //         for(int k = 0 ; k < RX; k++){
-    //             for(int l = 0 ; l < TX; l++){
-    //                 rdm_data_complex[i][j][k][l] = std::complex<float>(rdm_data[0][i][j][k][l], rdm_data[1][i][j][k][l]);
-    //             }
-    //         }
-    //     }
-    // }
-    for(int i = 0 ; i < FAST_TIME; i++){
-        for(int j = 0 ; j < SLOW_TIME; j++){
-            for(int k = 0 ; k < RX; k++){
-                for(int l = 0 ; l < TX; l++){
-                    rdm_data_complex[i][j][k][l] = std::complex<float>(rdm_data[0][i][j][k][l], rdm_data[1][i][j][k][l]);
-                }
-            }
-        }
-    }
-
-    std::cout << rdm_data_complex[0][0][0][0] << std::endl;
-    
-    //TESTING FILTER COEFFICIENTS
-    float blackman[FAST_TIME] = {0};
-    blackman_filter(blackman, FAST_TIME);
-
-    for(int i=0; i<FAST_TIME; i++){
-        std::cout<<blackman[i]<<"  | " << i+1 <<std::endl;
-    }
-
-    return 0;
+  return 0;
 }
-
-
-
-
