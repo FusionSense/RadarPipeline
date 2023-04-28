@@ -72,7 +72,24 @@ class RadarBlock
             for(;;)
             {
                 listen();
+
+                // start timer
+                auto start = std::chrono::high_resolution_clock::now();
+
                 process();
+
+                // stop timer
+                auto stop = std::chrono::high_resolution_clock::now();
+
+                // if(verbose)
+                // {
+                //     // calculate elapsed time in microseconds
+                //     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+
+                //     // print elapsed time
+                //     std::cout << "Elapsed time: " << duration.count() << " microseconds" << std::endl;
+                // }
+
                 increment_frame();
             }
         }
