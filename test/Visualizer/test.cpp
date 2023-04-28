@@ -10,7 +10,7 @@ void updateBuffer(int* bufferptr, uint* frameptr)
     {
         for (int i = 0; i < INPUT_SIZE; i++)
         {
-            bufferptr[i] = rand() % 100; // Generate a random number between 0 and 99
+            bufferptr[i] = rand() % 256; // Generate a random number between 0 and 255
         }
 
         (*frameptr)++;
