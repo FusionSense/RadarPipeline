@@ -4,9 +4,9 @@ using namespace cv;
 // Base class used for other modules
 class RadarBlock
 {
-
     int inputsize;
     int outputsize;
+    bool verbose;
 
     public:
         // Public variables
@@ -19,10 +19,11 @@ class RadarBlock
 
         // Public functions
         // Class constructor
-        RadarBlock(int size_in, int size_out) : outputbuffer(new int[size_out])
+        RadarBlock(int size_in, int size_out, bool v = false) : outputbuffer(new int[size_out])
         {   
             inputsize = size_in;
             outputsize = size_out;
+            verbose = v;
 
             printf("New %s created.\n", typeid(*this).name());
         }
@@ -74,21 +75,21 @@ class RadarBlock
                 listen();
 
                 // start timer
-                auto start = std::chrono::high_resolution_clock::now();
+                auto start = chrono::high_resolution_clock::now();
 
                 process();
 
                 // stop timer
-                auto stop = std::chrono::high_resolution_clock::now();
+                auto stop = chrono::high_resolution_clock::now();
 
-                // if(verbose)
-                // {
-                //     // calculate elapsed time in microseconds
-                //     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+                if(verbose)
+                {
+                    // calculate elapsed time in microseconds
+                    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-                //     // print elapsed time
-                //     std::cout << "Elapsed time: " << duration.count() << " microseconds" << std::endl;
-                // }
+                    // print elapsed time
+                    cout << "Elapsed time: " << duration.count() << " microseconds" << endl;
+                }
 
                 increment_frame();
             }
@@ -130,7 +131,7 @@ class Visualizer : public RadarBlock
     int px_height = 10;
 
     public:
-        Visualizer(int size_in, int size_out) : RadarBlock(size_in, size_out), 
+        Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
         {
             namedWindow("Image", WINDOW_OPENGL);

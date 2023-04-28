@@ -27,7 +27,7 @@ int main()
     int* in_bufferptr = inputbuffer;
 
     // New block
-    Visualizer obj(INPUT_SIZE, OUTPUT_SIZE);
+    Visualizer obj(INPUT_SIZE, OUTPUT_SIZE, true);
 
     // Setting inputs
     obj.setBufferPointer(in_bufferptr);
