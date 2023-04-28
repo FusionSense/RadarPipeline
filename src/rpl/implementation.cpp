@@ -105,29 +105,47 @@ class RadarBlock
 // Visualizes range-doppler data
 class Visualizer : public RadarBlock
 {
+    // Variables
+    int width = 512;
+    int height = 64;
+
+    int px_width = 2;
+    int px_height = 10;
+
     public:
-        Visualizer(int size_in, int size_out) : RadarBlock(size_in, size_out)
+        Visualizer(int size_in, int size_out) : RadarBlock(size_in, size_out), 
+            image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
         {
-            printf("blah...");
+            namedWindow("Image", WINDOW_OPENGL);
         }
 
+        // Visualizer's process
         void process() override
         {
-            // Create a 64x512 matrix with the data buffer
-            Mat image(64, 512, CV_8UC1, (void*)inputbufferptr, 512);
-            
+            // 
+            for (int i = 0; i < width; i++) {
+                for (int j = 0; j < height; j++) {
+                    for(int x = 0; x < px_width; x++) {
+                        for(int y = 0; y < px_height; y++) {
+                            image.at<uint8_t>(px_height * j + y, px_width * i + x) = inputbufferptr[width * j + i];
+                        }
+                    }
+                }
+            }
+
             // Convert the matrix to a color image for visualization
             Mat colorImage;
             applyColorMap(image, colorImage, COLORMAP_JET);
             
             // Display the color image
-            imshow("Data Buffer Plot", colorImage);
+            imshow("Image", colorImage);
 
             // Waits 1ms
             waitKey(1);
         }
 
     private:
+        Mat image;
         
 };
 
