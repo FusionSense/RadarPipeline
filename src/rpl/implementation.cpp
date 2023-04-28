@@ -1,6 +1,4 @@
 using namespace std;
-
-#include <opencv2/opencv.hpp>
 using namespace cv;
 
 // Base class used for other modules
@@ -62,6 +60,12 @@ class RadarBlock
             return &frame;
         }
 
+        // Complete desired calculations / data manipulation
+        virtual void process()
+        {
+            printf("Process done!\n");
+        }
+
         // Iterates
         void iteration()
         {
@@ -91,12 +95,6 @@ class RadarBlock
             }
         }
 
-        // Complete desired calculations / data manipulation
-        void process()
-        {
-            printf("Process done!\n");
-        }
-
         // Increments frame count
         void increment_frame()
         {
@@ -107,21 +105,30 @@ class RadarBlock
 // Visualizes range-doppler data
 class Visualizer : public RadarBlock
 {
-    void process()
-    {
-        // Create a 64x512 matrix with the data buffer
-        Mat image(64, 512, CV_8UC1, (void*)inputbufferptr, 512);
-        
-        // Convert the matrix to a color image for visualization
-        Mat colorImage;
-        applyColorMap(image, colorImage, COLORMAP_JET);
-        
-        // Display the color image
-        imshow("Data Buffer Plot", colorImage);
-        waitKey(0);
+    public:
+        Visualizer(int size_in, int size_out) : RadarBlock(size_in, size_out)
+        {
+            printf("blah...");
+        }
 
-        // printf("Visualiziation made!");
-    }
+        void process() override
+        {
+            // Create a 64x512 matrix with the data buffer
+            Mat image(64, 512, CV_8UC1, (void*)inputbufferptr, 512);
+            
+            // Convert the matrix to a color image for visualization
+            Mat colorImage;
+            applyColorMap(image, colorImage, COLORMAP_JET);
+            
+            // Display the color image
+            imshow("Data Buffer Plot", colorImage);
+
+            // Waits 1ms
+            waitKey(1);
+        }
+
+    private:
+        
 };
 
 ////// Data transfer //////
@@ -206,7 +213,7 @@ tuple<int,int> host()
     servaddr.sin_port = htons(TCP_PORT);
    
     // Binding newly created socket to given IP and verification
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
+    if ((::bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
         printf("socket bind failed...\n");
         exit(0);
     }

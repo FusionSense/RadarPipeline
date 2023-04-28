@@ -10,11 +10,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <thread>
+#include <dispatch/dispatch.h>
 #include SERVER_PARAMS
 #include CLIENT_PARAMS
 #define SA struct sockaddr
 
 #include "implementation.cpp"
-
-#include <iostream>
-#include <thread>
