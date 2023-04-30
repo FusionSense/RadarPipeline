@@ -71,10 +71,6 @@ void read_udp_packets() {
     int n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
     buffer[n] = '\0'; // Null-terminate the buffer
 
-    uint64_t max_packet_num = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | buffer [0];
-    uint64_t max_byte_count = (buffer[9] << 8*5) | (buffer[8] << 8*4) | (buffer[7] << 8*3) | (buffer[6] << 8*2) | (buffer[5] << 8) | (buffer[4]);
-    //std::cout << "Max Seq:" << max_packet_num << std::endl;
-    //std::cout << "Max Bytes:" << max_byte_count << std::endl;
     uint32_t starting_sequence_num = ((buffer[0] & 0xFF) << 0)  |
                                 ((buffer[1] & 0xFF) << 8)  |
                                 ((buffer[2] & 0xFF) << 16) |
@@ -106,9 +102,16 @@ void read_udp_packets() {
         //                         ((long) (0x00) << 54);
 
         // print byte count from DCA data
-        std::cout << "Byte Count = " << byte_count << std::endl;
+        //std::cout << "Byte Count = " << byte_count << std::endl;
 
-
+        uint16_t packet_data[(sizeof(buffer)-10)];
+        //Read packet data from buffer
+        for (int i = 0; i< sizeof(buffer); i++)
+        {
+            packet_data[i] =  buffer[2*i+10] | (buffer[2*i+11] << 8);
+        }
+        std::cout << "First I value = " << packet_data[0] << std::endl;
+        std::cout << "First Q value = " << packet_data[1] << std::endl;
 
         //std::cout<< frame << std::endl;
         //std::cout << "Sequs:" << pck_num << std::endl;
