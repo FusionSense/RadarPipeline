@@ -16,24 +16,30 @@
 #define IQ_BYTES 2 
 
 
-void read_udp_packets();
+uint16_t* read_udp_packets();
 
 int main()
 {
-    read_udp_packets();
+    uint16_t* frame_ptr = read_udp_packets();
+
+    return 0;
 }
 
 
-void read_udp_packets() {
+uint16_t* read_udp_packets() {
 
     // Variable initialization
-    uint16_t BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*NUM_RX*NUM_TX*IQ_DATA*IQ_BYTES;
-    uint16_t BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
+    uint64_t BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*NUM_RX*NUM_TX*IQ_DATA*IQ_BYTES;
+    uint64_t BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
+    //std::cout << "Bytes in frame = " << BYTES_IN_FRAME << std::endl;
+    //std::cout << "Bytes in frame clipped = " << BYTES_IN_FRAME_CLIPPED << std::endl;
 
     //float PACKETS_FRAME = BYTES_IN_FRAME / BYTES_IN_PACKET;
     uint16_t PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
     uint16_t UINT16_IN_PACKET = BYTES_IN_PACKET / 2;
-    uint16_t UINT16_IN_FRAME = BYTES_IN_FRAME / 2;
+    uint64_t UINT16_IN_FRAME = BYTES_IN_FRAME / 2;
+
+    uint64_t packets_read = 0;
 
     // socket file descriptor
     int sockfd; 
@@ -67,6 +73,8 @@ void read_udp_packets() {
     servaddr.sin_port = htons(PORT);
     bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
+    uint16_t frame_data[(PACKETS_IN_FRAME_CLIPPED*UINT16_IN_PACKET)];
+
     // n is the packet size in bytes (including sequence number and byte count)
     int n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
     buffer[n] = '\0'; // Null-terminate the buffer
@@ -84,25 +92,29 @@ void read_udp_packets() {
         buffer[n] = '\0'; // Null-terminate the buffer
 
         // first four bytes from buffer (the sequence number)
-        uint32_t sequence_num = ((buffer[0] & 0xFF) << 0)  |
+        uint32_t packet_num = ((buffer[0] & 0xFF) << 0)  |
                                 ((buffer[1] & 0xFF) << 8)  |
                                 ((buffer[2] & 0xFF) << 16) |
                                 ((long) (buffer[3] & 0xFF) << 24);
-        // print sequence number (packet count from DCA data) -> misses packets
-        std::cout << "Sequence Number = " << sequence_num << std::endl;
+        // print packet number (packet count from DCA data) -> misses packets
+        //std::cout << "Packet Number = " << packet_num << std::endl;
 
         //unpack byte count
-        // uint64_t byte_count = ((buffer[4] & 0xFF) << 0)  |
-        //                         ((buffer[5] & 0xFF) << 8)  |
-        //                         ((buffer[6] & 0xFF) << 16) |
-        //                         ((buffer[7] & 0xFF) << 24) |
-        //                         ((buffer[8] & 0xFF) << 32) |
-        //                         ((buffer[9] & 0xFF) << 40) |
-        //                         ((0x00) << 48) |
-        //                         ((long) (0x00) << 54);
+        uint64_t byte_count = ((buffer[4] & 0xFF) << 0)  |
+                                ((buffer[5] & 0xFF) << 8)  |
+                                ((buffer[6] & 0xFF) << 16) |
+                                ((buffer[7] & 0xFF) << 24) |
+                                ((unsigned long long) (buffer[8] & 0xFF) << 32) |
+                                ((unsigned long long) (buffer[9] & 0xFF) << 40) |
+                                ((unsigned long long) (0x00) << 48) |
+                                ((unsigned long long) (0x00) << 54);
 
         // print byte count from DCA data
         //std::cout << "Byte Count = " << byte_count << std::endl;
+ 
+
+        //std::cout << "Bytes since last packet = " << byte_count - byte_count_old << std::endl;
+        //byte_count_old = byte_count;
 
         uint16_t packet_data[(sizeof(buffer)-10)];
         //Read packet data from buffer
@@ -110,31 +122,27 @@ void read_udp_packets() {
         {
             packet_data[i] =  buffer[2*i+10] | (buffer[2*i+11] << 8);
         }
-        std::cout << "First I value = " << packet_data[0] << std::endl;
-        std::cout << "First Q value = " << packet_data[1] << std::endl;
+        packets_read++;
+        //std::cout << "First I value = " << packet_data[0] << std::endl;
+        //std::cout << "Second I value = " << packet_data[1] << std::endl;
 
-        //std::cout<< frame << std::endl;
-        //std::cout << "Sequs:" << pck_num << std::endl;
-        //std::cout << "Bytes:" << byt_cnt  << std::endl;
-        
-        // // Get IQ data from buffer
-        // int buffer_len = sizeof(buffer);
+        //Do something with the data, e.g., save it to a file or process it in some way
 
-
-        // while(buffer_len >= 4)
+        // Add packet_data to ret_frame
+        // uint16_t start_frame_idx = UINT16_IN_PACKET*(packets_read-1);
+        // for (int i = start_frame_idx; i < start*packets_read+sizeof(packet_data); i++)
         // {
-        //     int16_t i_data = (buffer[1] << 8) | buffer[0]; // Assembling the 16 bit I
-        //     int16_t q_data = (buffer[3] << 8) | buffer[2]; // Assembling the 16 bit Q
-        //     std::cout << "I: " << i_data << ", Q: " << q_data << std::endl;
-        //     buffer_len -= 4;
-        //     memmove(buffer, buffer + 4, buffer_len);
+        //     frame_data[i] = packet_data[i-1024*packets_read];
         // }
-
-        // std::cout << "Received packet from " << inet_ntoa(cliaddr.sin_addr) << ":" << ntohs(cliaddr.sin_port) << std::endl;
-        // std::cout << "Data: " << buffer << std::endl;
-        // // Do something with the data, e.g., save it to a file or process it in some way
+        uint64_t byte_mod = byte_count % BYTES_IN_FRAME_CLIPPED;
+        if (byte_mod == 0) //end of frame found
+        {
+            std::cout << "Modulus Thing = " << byte_mod << std::endl;
+            return frame_data;
+        }
     }
 
     // Close the socket
     close(sockfd);
 }
+
