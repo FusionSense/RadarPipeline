@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <complex>
-
+#include <cmath>
 #include <fftw3.h>
 
 #define FAST_TIME 512
@@ -11,6 +11,11 @@
 #define IQ 2
 #define SIZE_W_IQ TX*RX*FAST_TIME*SLOW_TIME*IQ
 #define SIZE TX*RX*FAST_TIME*SLOW_TIME
+
+void blackman_window(float* arr, int size){
+  for(int i = 0; i<size; i++)
+    arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(size-1))+0.08*cos(4*M_PI*i/(size-1));
+}
 
 void readFile(const std::string& filename, float* arr, int size) {
     std::ifstream file(filename);
