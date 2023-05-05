@@ -161,6 +161,17 @@ class RangeDoppler : public RadarBlock
             std::cout << "Array saved to file. " << std::endl;
             return 0;
         }
+        
+        int save_1d_array(float* arr, int width, int length, const char* filename) {
+            std::ofstream outfile(filename);
+            for (int i=0; i<length*width; i++) {
+                outfile << arr[i] << std::endl;
+            }
+
+            //outfile.close();
+            std::cout << "Array saved to file. " << std::endl;
+            return 0;
+        }
 
         // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
         void getIndices(int index_1D, int* indices){
