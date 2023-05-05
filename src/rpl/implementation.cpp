@@ -104,8 +104,6 @@ class RadarBlock
 // Processes IQ data to make Range-Doppler map
 class RangeDoppler : public RadarBlock
 {
-    private: 
-        int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
     public:
         RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq)
         {
@@ -116,6 +114,11 @@ class RangeDoppler : public RadarBlock
             IQ = iq;
             SIZE = TX*RX*FAST_TIME*SLOW_TIME;
             SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;
+            auto adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+            auto adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+            auto rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));
+            auto rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));
+            auto rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
         }
 
         void blackman_window(float* arr, int size){
@@ -244,9 +247,21 @@ class RangeDoppler : public RadarBlock
         }
         void process() 
         {
-            
+            std::complex<float>* adc_data;
+            readFile("../data/adc_data/STRUCT_VERIF.txt", adc_data_flat, SIZE_W_IQ);
+            adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
+            shape_cube(adc_data_flat, &adc_data_reshaped, adc_data);
+            // compute_range_doppler(adc_data, rdm_data);
+            // compute_mag_norm(rdm_data, rdm_norm);
+            // averaged_rdm(rdm_norm, rdm_avg);
             printf("Range-Doppler map done!");
         }
+
+        private: 
+            int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
+            float* adc_data_flat, rdm_avg, rdm_norm, adc_data_reshaped;
+            std::complex<float>* rdm_data;
+           
 
 };
 
@@ -285,6 +300,7 @@ void calc_speed(int connfd)
             start = clock();
         }
     }
+
 }
 
 // Sends random packets of data of size CUBE
@@ -305,7 +321,7 @@ void send_rand(int sockfd)
     }
 }
 
-////// Connection management //////
+// Connection management //
 
 // Starts the server connection
 tuple<int,int> host()
