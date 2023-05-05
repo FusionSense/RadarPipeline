@@ -121,9 +121,9 @@ class RangeDoppler : public RadarBlock
             rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
         }
 
-        void blackman_window(float* arr, int size){
-            for(int i = 0; i<size; i++)
-                arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(size-1))+0.08*cos(4*M_PI*i/(size-1));
+        void blackman_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
         }
 
         void readFile(const std::string& filename, float* arr, int size) {
@@ -161,7 +161,7 @@ class RangeDoppler : public RadarBlock
             std::cout << "Array saved to file. " << std::endl;
             return 0;
         }
-        
+
         int save_1d_array(float* arr, int width, int length, const char* filename) {
             std::ofstream outfile(filename);
             for (int i=0; i<length*width; i++) {
@@ -258,7 +258,6 @@ class RangeDoppler : public RadarBlock
         }
         void process() 
         {
-            std::complex<float>* adc_data;
             readFile("../data/adc_data/adc_data00.txt", adc_data_flat, SIZE_W_IQ);
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
@@ -272,8 +271,8 @@ class RangeDoppler : public RadarBlock
             int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float>* rdm_data;
-           
-
+            std::complex<float>* adc_data;
+        
 };
 
 // Calculates speed of incoming data
