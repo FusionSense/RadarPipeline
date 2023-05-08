@@ -126,6 +126,15 @@ class RangeDoppler : public RadarBlock
                 arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
         }
 
+        void hann_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 0.5 * (1 - cos((2 * M_PI * i) / (fast_time - 1)));
+        }
+        
+        void no_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 1;
+        }
         void readFile(const std::string& filename, float* arr, int size) {
             std::ifstream file(filename);
             if (file.is_open()) {
@@ -189,13 +198,20 @@ class RangeDoppler : public RadarBlock
             indices[1] = i4;                    // RX#
         }
 
-        void shape_cube(float* in, float* mid, std::complex<float>* out) { 
+        void shape_cube(float* in, float* mid, std::complex<float>* out, std::string& window_type) { 
             int rx=0;
             int tx=0;
             int iq=0;
             int fast_time=0;
             int slow_time=0;
             int indices[5] = {0};
+            float window[FAST_TIME];
+            if(window_type.compare("blackman") == 0)
+                blackman_window(window, FAST_TIME);
+            else if(window_type.compare("hann") == 0)
+                hann_window(window, FAST_TIME);
+            else
+                no_window(window, FAST_TIME);
             
             for (int i =0; i<SIZE_W_IQ; i++) {
                 getIndices(i, indices);
@@ -204,7 +220,7 @@ class RangeDoppler : public RadarBlock
                 slow_time=indices[2]*FAST_TIME*IQ;
                 fast_time=indices[3]*IQ;
                 iq=indices[4];
-                mid[tx+rx+slow_time+fast_time+iq]=in[i];
+                mid[tx+rx+slow_time+fast_time+iq]=in[i]*window[fast_time/IQ];
             }
 
             for(int i=0; i<SIZE; i++){
@@ -232,7 +248,7 @@ class RangeDoppler : public RadarBlock
 
         int compute_mag_norm(std::complex<float>* rdm_complex, float* rdm_norm) {
             float norm, log;
-            std::complex<float> val;
+            std::complex<float> val; 
             for(int i=0; i<SIZE; i++) {
                 val=rdm_complex[i];
                 norm=std::norm(val);
