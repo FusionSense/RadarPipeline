@@ -10,6 +10,10 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <thread>
+#include <chrono>
 #include <complex>
 #include <cmath>
 #include <fftw3.h>

@@ -1,11 +1,12 @@
 using namespace std;
+using namespace cv;
 
 // Base class used for other modules
 class RadarBlock
 {
-
     int inputsize;
     int outputsize;
+    bool verbose;
 
     public:
         // Public variables
@@ -18,10 +19,11 @@ class RadarBlock
 
         // Public functions
         // Class constructor
-        RadarBlock(int size_in, int size_out) : outputbuffer(new int[size_out])
+        RadarBlock(int size_in, int size_out, bool v = false) : outputbuffer(new int[size_out])
         {   
             inputsize = size_in;
             outputsize = size_out;
+            verbose = v;
 
             printf("New %s created.\n", typeid(*this).name());
         }
@@ -59,13 +61,36 @@ class RadarBlock
             return &frame;
         }
 
+        // Complete desired calculations / data manipulation
+        virtual void process()
+        {
+            printf("Process done!\n");
+        }
+
         // Iterates
         void iteration()
         {
             for(;;)
             {
                 listen();
+
+                // start timer
+                auto start = chrono::high_resolution_clock::now();
+
                 process();
+
+                // stop timer
+                auto stop = chrono::high_resolution_clock::now();
+
+                if(verbose)
+                {
+                    // calculate elapsed time in microseconds
+                    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+
+                    // print elapsed time
+                    cout << "Elapsed time: " << duration.count() << " microseconds" << endl;
+                }
+
                 increment_frame();
             }
         }
@@ -88,18 +113,61 @@ class RadarBlock
             }
         }
 
-        // Complete desired calculations / data manipulation
-        void process()
-        {
-            printf("Process done!\n");
-        }
-
         // Increments frame count
         void increment_frame()
         {
             frame++;
         }
 };
+
+// Visualizes range-doppler data
+class Visualizer : public RadarBlock
+{
+    // Variables
+    int width = 512;
+    int height = 64;
+
+    int px_width = 2;
+    int px_height = 10;
+
+    public:
+        Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
+            image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
+        {
+            namedWindow("Image", WINDOW_OPENGL);
+        }
+
+        // Visualizer's process
+        void process() override
+        {
+            // 
+            for (int i = 0; i < width; i++) {
+                for (int j = 0; j < height; j++) {
+                    for(int x = 0; x < px_width; x++) {
+                        for(int y = 0; y < px_height; y++) {
+                            image.at<uint8_t>(px_height * j + y, px_width * i + x) = inputbufferptr[width * j + i];
+                        }
+                    }
+                }
+            }
+
+            // Convert the matrix to a color image for visualization
+            Mat colorImage;
+            applyColorMap(image, colorImage, COLORMAP_JET);
+            
+            // Display the color image
+            imshow("Image", colorImage);
+
+            // Waits 1ms
+            waitKey(1);
+        }
+
+    private:
+        Mat image;
+        
+};
+
+////// Data transfer //////
 
 // Processes IQ data to make Range-Doppler map
 class RangeDoppler : public RadarBlock
@@ -372,7 +440,7 @@ tuple<int,int> host()
     servaddr.sin_port = htons(TCP_PORT);
    
     // Binding newly created socket to given IP and verification
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
+    if ((::bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
         printf("socket bind failed...\n");
         exit(0);
     }
