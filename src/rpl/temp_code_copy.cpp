@@ -4,7 +4,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
 #include <fstream>
 
 #define BUFFER_SIZE 4096 
@@ -31,7 +30,6 @@ int main()
     return 0;
 }
 
-
 int save_1d_array(uint16_t* arr, int width, int length, const char* filename) {
     std::ofstream outfile(filename);
     for (int i=0; i<length*width; i++) {
@@ -43,19 +41,11 @@ int save_1d_array(uint16_t* arr, int width, int length, const char* filename) {
     return 0;
 }
 
-
-
-
-
 void read_udp_packets(uint16_t* frame_data) {
 
     // Variable initialization
     uint64_t BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*NUM_RX*NUM_TX*IQ_DATA*IQ_BYTES;
     uint64_t BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
-    //std::cout << "Bytes in frame = " << BYTES_IN_FRAME << std::endl;
-    //std::cout << "Bytes in frame clipped = " << BYTES_IN_FRAME_CLIPPED << std::endl;
-
-    //float PACKETS_IN_FRAME = BYTES_IN_FRAME / BYTES_IN_PACKET;
     uint16_t PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
     uint16_t UINT16_IN_PACKET = BYTES_IN_PACKET / 2; //728 entries in packet
     uint64_t UINT16_IN_FRAME = BYTES_IN_FRAME / 2;

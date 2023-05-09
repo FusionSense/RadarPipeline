@@ -104,7 +104,9 @@ class RadarBlock
 // Recieves UDP packets from DCA
 class DataAquisition : public RadarBlock
 {
-    void process()
+    
+    // DAQ's overriden process
+    void process() override
     {
         
 
