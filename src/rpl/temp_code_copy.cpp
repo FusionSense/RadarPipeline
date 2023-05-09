@@ -26,7 +26,7 @@ int main()
     uint16_t frame_data[NUM_RX*NUM_TX*FAST_TIME*SLOW_TIME*IQ_DATA]={0};
     read_udp_packets(frame_data);
 
-    save_1d_array(frame_data, FAST_TIME, SLOW_TIME, "./out.txt");
+    save_1d_array(frame_data, FAST_TIME*NUM_TX*NUM_RX*IQ_DATA, SLOW_TIME, "./out.txt");
 
     return 0;
 }

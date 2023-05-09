@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE 1024
+#define PORT        4098
 
 
 
@@ -17,19 +18,21 @@ int main()
 }
 
 void read_udp_packets() {
-    int sockfd, n;
+    int sockfd, n; 
     char buffer[BUFFER_SIZE];
     struct sockaddr_in servaddr, cliaddr;
     socklen_t len = sizeof(cliaddr);
 
     // Create a UDP socket
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
+
+    
 
     // Bind the socket to any available IP address and a specific port
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(4098);
+    servaddr.sin_port = htons(PORT);
     bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
     // Receive UDP packets and save the data to a buffer

@@ -106,9 +106,16 @@ class DataAquisition : public RadarBlock
 {
     void process()
     {
+        
+
+
+
         printf("Data aquired!");
     }
 };
+
+
+
 
 ////// Data transfer //////
 
