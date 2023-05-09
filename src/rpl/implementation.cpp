@@ -183,10 +183,22 @@ class RangeDoppler : public RadarBlock
             SIZE = TX*RX*FAST_TIME*SLOW_TIME;
             SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;
             adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+            adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
             rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));
             rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));
             rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
+            const int rank = 2;
+            const int n[] = {SLOW_TIME, FAST_TIME};
+            const int howmany = TX*RX;
+            const int idist = SLOW_TIME*FAST_TIME;
+            const int odist = SLOW_TIME*FAST_TIME;
+            const int istride = 1;
+            const int ostride = 1;
+            plan = fftwf_plan_many_dft(rank, n, howmany,
+                                reinterpret_cast<fftwf_complex*>(adc_data), n, istride, idist,
+                                reinterpret_cast<fftwf_complex*>(rdm_data), n, ostride, odist,
+                                FFTW_FORWARD, FFTW_ESTIMATE);
         }
 
         void blackman_window(float* arr, int fast_time){
@@ -296,20 +308,7 @@ class RangeDoppler : public RadarBlock
             }
         }
 
-        int compute_range_doppler(std::complex<float>* adc, std::complex<float>* rdm) {
-            const int rank = 2;
-            const int n[] = {SLOW_TIME, FAST_TIME};
-            const int howmany = TX*RX;
-            const int idist = SLOW_TIME*FAST_TIME;
-            const int odist = SLOW_TIME*FAST_TIME;
-            const int istride = 1;
-            const int ostride = 1;
-
-            fftwf_plan plan = fftwf_plan_many_dft(rank, n, howmany,
-                                reinterpret_cast<fftwf_complex*>(adc), n, istride, idist,
-                                reinterpret_cast<fftwf_complex*>(rdm), n, ostride, odist,
-                                FFTW_FORWARD, FFTW_ESTIMATE);
-
+        int compute_range_doppler() {
             fftwf_execute(plan);
             return 0;
         }
@@ -345,7 +344,7 @@ class RangeDoppler : public RadarBlock
             readFile("../data/adc_data/adc_data00.txt", adc_data_flat, SIZE_W_IQ);
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
-            compute_range_doppler(adc_data, rdm_data);
+            compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
             averaged_rdm(rdm_norm, rdm_avg);
             printf("Range-Doppler map done!");
@@ -354,8 +353,8 @@ class RangeDoppler : public RadarBlock
         private: 
             int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
-            std::complex<float>* rdm_data;
-            std::complex<float>* adc_data;
+            std::complex<float> *rdm_data, *adc_data;
+            fftwf_plan plan;
         
 };
 
