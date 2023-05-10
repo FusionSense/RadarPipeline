@@ -1,5 +1,5 @@
 using namespace std;
-using namespace cv;
+// using namespace cv;
 
 // Base class used for other modules
 class RadarBlock
@@ -120,244 +120,356 @@ class RadarBlock
         }
 };
 
-// Visualizes range-doppler data
-class Visualizer : public RadarBlock
-{
-    // Variables
-    int width = 512;
-    int height = 64;
-
-    int px_width = 2;
-    int px_height = 10;
-
+// Data Acquisition class 
+class DataAcquisition : public RadarBlock
+{ 
     public:
-        Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
-            image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
+        DataAcquisition(int buffer_size, int port, int bytes_in_packet, int fast_time, int slow_time, int rx, int tx, int iq_data, int iq_bytes) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
         {
-            namedWindow("Image", WINDOW_OPENGL);
-        }
-
-        // Visualizer's process
-        void process() override
-        {
-            // 
-            for (int i = 0; i < width; i++) {
-                for (int j = 0; j < height; j++) {
-                    for(int x = 0; x < px_width; x++) {
-                        for(int y = 0; y < px_height; y++) {
-                            image.at<uint8_t>(px_height * j + y, px_width * i + x) = inputbufferptr[width * j + i];
-                        }
-                    }
-                }
-            }
-
-            // Convert the matrix to a color image for visualization
-            Mat colorImage;
-            applyColorMap(image, colorImage, COLORMAP_JET);
-            
-            // Display the color image
-            imshow("Image", colorImage);
-
-            // Waits 1ms
-            waitKey(1);
-        }
-
-    private:
-        Mat image;
-        
-};
-
-////// Data transfer //////
-
-// Processes IQ data to make Range-Doppler map
-class RangeDoppler : public RadarBlock
-{
-    public:
-        RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
-        {
-            FAST_TIME = fast_time;
-            SLOW_TIME = slow_time;
+            BUFFER_SIZE = buffer_size; 
+            PORT = port;
+            BYTES_IN_PACKET = bytes_in_packet;
             RX = rx;
             TX = tx;
-            IQ = iq;
-            SIZE = TX*RX*FAST_TIME*SLOW_TIME;
-            SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;
-            adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
-            adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
-            rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));
-            rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));
-            rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
+            FAST_TIME = fast_time;
+            SLOW_TIME = slow_time;
+            IQ_DATA = iq_data;
+            IQ_BYTES = iq_bytes;
+    
+            BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ_DATA*IQ_BYTES;
+            BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
+            PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
+            UINT16_IN_PACKET = BYTES_IN_PACKET / 2; //728 entries in packet
+            UINT16_IN_FRAME = BYTES_IN_FRAME / 2;
+            packets_read = 0;
+
         }
 
-        void blackman_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
+        void create_bind_socket(){
+            // Create a UDP socket file descriptor which is UNbounded
+            if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) <  0){
+                perror("Socket creation failed"); 
+                exit(EXIT_FAILURE);
+            }
+
+            memset(&servaddr, 0, sizeof(servaddr)); 
+            memset(&cliaddr, 0, sizeof(cliaddr)); 
+
+            // Filling in the servers (DCA1000EVMs) information
+            servaddr.sin_family     = AF_INET;      //this means it is a IPv4 address
+            servaddr.sin_addr.s_addr= INADDR_ANY;   //sets address to accept incoming messages
+            servaddr.sin_port       = htons(PORT);  //port number to accept from
+            
+            // Now we bind the socket with the servers (DCA1000EVMs) address 
+            // if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) 
+
+            // Bind the socket to any available IP address and a specific port
+            bzero(&servaddr, sizeof(servaddr));
+            servaddr.sin_family = AF_INET;
+            servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+            servaddr.sin_port = htons(PORT);
+            bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
         }
 
-        void hann_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 0.5 * (1 - cos((2 * M_PI * i) / (fast_time - 1)));
+        void read_socket(char *buffer){
+            // n is the packet size in bytes (including sequence number and byte count)
+            n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
+            buffer[n] = '\0'; // Null-terminate the buffer
         }
+
+        uint32_t get_packet_num(char *buffer){
+            uint32_t packet_number = ((buffer[0] & 0xFF) << 0)  |
+                                    ((buffer[1] & 0xFF) << 8)  |
+                                    ((buffer[2] & 0xFF) << 16) |
+                                    ((long) (buffer[3] & 0xFF) << 24);
+
+            return packet_number;
+        }
+
+        uint64_t get_byte_count(char *buffer){
+            uint64_t byte_count = ((buffer[4] & 0xFF) << 0)  |
+                                ((buffer[5] & 0xFF) << 8)  |
+                                ((buffer[6] & 0xFF) << 16) |
+                                ((buffer[7] & 0xFF) << 24) |
+                                ((unsigned long long) (buffer[8] & 0xFF) << 32) |
+                                ((unsigned long long) (buffer[9] & 0xFF) << 40) |
+                                ((unsigned long long) (0x00) << 48) |
+                                ((unsigned long long) (0x00) << 54);
+
+            return byte_count;
+        }
+
         
-        void no_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 1;
-        }
-        void readFile(const std::string& filename, float* arr, int size) {
-            std::ifstream file(filename);
-            if (file.is_open()) {
-                std::string line;
-                
-                int i = 0;
-                while (std::getline(file, line)) {
-                    if(i > size){
-                        std::cerr << "Error: More samples than SIZE " << filename << std::endl;
-                        break;
-                    }
-                    float value = std::stof(line);
-                    arr[i] = value;
-                    i++;
-                }
-                std::cout << "File Successfully read!" << std::endl;
-                file.close();
-            } else {
-                std::cerr << "Error: Could not open file " << filename << std::endl;
-            }
-        }
-
-        int save_2d_array(float* arr, int width, int length, const char* filename) {
-            std::ofstream outfile(filename);
-            for (int i=0; i<length; i++) {
-                for (int j=0; j<width; j++) {
-                outfile << arr[i*width+j] << " ";
-                }
-                outfile << std::endl;
-            }
-
-            //outfile.close();
-            std::cout << "Array saved to file. " << std::endl;
-            return 0;
-        }
-
-        int save_1d_array(float* arr, int width, int length, const char* filename) {
-            std::ofstream outfile(filename);
-            for (int i=0; i<length*width; i++) {
-                outfile << arr[i] << std::endl;
-            }
-
-            //outfile.close();
-            std::cout << "Array saved to file. " << std::endl;
-            return 0;
-        }
-
-        // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
-        void getIndices(int index_1D, int* indices){
-            int iq=2;  
-            int i0 = index_1D/(RX*IQ*FAST_TIME*TX);
-            int i1 = index_1D%(RX*IQ*FAST_TIME*TX);
-            int i2 = i1%(RX*IQ*FAST_TIME);
-            int i3 = i2%(RX*IQ);
-            int i4 = i3%(RX);
-            
-            indices[2] = i0;                    // SLOW_TIME | Chirp#
-            indices[0] = i1/(RX*IQ*FAST_TIME);  // TX#
-            indices[3] = i2/(RX*IQ);            // FAST_TIME | Range#
-            indices[4] = i3/(RX);                 // IQ
-            indices[1] = i4;                    // RX#
-        }
-
-        void shape_cube(float* in, float* mid, std::complex<float>* out, std::string& window_type) { 
-            int rx=0;
-            int tx=0;
-            int iq=0;
-            int fast_time=0;
-            int slow_time=0;
-            int indices[5] = {0};
-            float window[FAST_TIME];
-            if(window_type.compare("blackman") == 0)
-                blackman_window(window, FAST_TIME);
-            else if(window_type.compare("hann") == 0)
-                hann_window(window, FAST_TIME);
-            else
-                no_window(window, FAST_TIME);
-            
-            for (int i =0; i<SIZE_W_IQ; i++) {
-                getIndices(i, indices);
-                tx=indices[0]*RX*SLOW_TIME*FAST_TIME*IQ;
-                rx=indices[1]*SLOW_TIME*FAST_TIME*IQ;
-                slow_time=indices[2]*FAST_TIME*IQ;
-                fast_time=indices[3]*IQ;
-                iq=indices[4];
-                mid[tx+rx+slow_time+fast_time+iq]=in[i]*window[fast_time/IQ];
-            }
-
-            for(int i=0; i<SIZE; i++){
-                out[i]=std::complex<float>(mid[2*i+0], mid[2*i+1]);
-            }
-        }
-
-        int compute_range_doppler(std::complex<float>* adc, std::complex<float>* rdm) {
-            const int rank = 2;
-            const int n[] = {SLOW_TIME, FAST_TIME};
-            const int howmany = TX*RX;
-            const int idist = SLOW_TIME*FAST_TIME;
-            const int odist = SLOW_TIME*FAST_TIME;
-            const int istride = 1;
-            const int ostride = 1;
-
-            fftwf_plan plan = fftwf_plan_many_dft(rank, n, howmany,
-                                reinterpret_cast<fftwf_complex*>(adc), n, istride, idist,
-                                reinterpret_cast<fftwf_complex*>(rdm), n, ostride, odist,
-                                FFTW_FORWARD, FFTW_ESTIMATE);
-
-            fftwf_execute(plan);
-            return 0;
-        }
-
-        int compute_mag_norm(std::complex<float>* rdm_complex, float* rdm_norm) {
-            float norm, log;
-            std::complex<float> val; 
-            for(int i=0; i<SIZE; i++) {
-                val=rdm_complex[i];
-                norm=std::norm(val);
-                log=log2f(norm)/2.0f;
-                rdm_norm[i]=log;
-            }
-            return 0;
-        }
-
-        // rdm_avg should be zero-filled
-        int averaged_rdm(float* rdm_norm, float* rdm_avg) {
-            int idx;
-            const int VIRT_ANTS = RX*TX;
-            const int RD_BINS = SLOW_TIME*FAST_TIME;
-            
-            for (int i=0; i<(VIRT_ANTS); i++) {
-                for (int j=0; j<(RD_BINS); j++) {
-                idx=i*(RD_BINS)+j;
-                rdm_avg[j]+=rdm_norm[idx]/((float) RD_BINS);
-                }
-            }
-            return 0;   
-        }
         void process() 
         {
-            readFile("../data/adc_data/adc_data00.txt", adc_data_flat, SIZE_W_IQ);
-            adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
-            shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
-            compute_range_doppler(adc_data, rdm_data);
-            compute_mag_norm(rdm_data, rdm_norm);
-            averaged_rdm(rdm_norm, rdm_avg);
-            printf("Range-Doppler map done!");
+            // create buffer array of preset size to hold one packet
+            char buffer[BUFFER_SIZE];
+            create_bind_socket();
+            while (true)
+            {
+                read_socket(buffer);
+                //read packet_data()
+            }
+
+            
         }
 
         private: 
-            int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
+            int BUFFER_SIZE, PORT, BYTES_IN_PACKET, RX, TX, FAST_TIME, SLOW_TIME, IQ_DATA, IQ_BYTES; 
+            uint64_t BYTES_IN_FRAME, BYTES_IN_FRAME_CLIPPED, PACKETS_IN_FRAME_CLIPPED, UINT16_IN_PACKET, UINT16_IN_FRAME, packets_read;
+            int sockfd;                             // socket file descriptor
+            struct sockaddr_in servaddr, cliaddr;   // initialize socket
+            char buffer;
+            socklen_t len; 
+            int n;  // n is the packet size in bytes (including sequence number and byte count)
+            uint32_t packet_num, packets_read;
+
+            
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float>* rdm_data;
             std::complex<float>* adc_data;
         
 };
+
+
+// // Visualizes range-doppler data
+// class Visualizer : public RadarBlock
+// {
+//     // Variables
+//     int width = 512;
+//     int height = 64;
+
+//     int px_width = 2;
+//     int px_height = 10;
+
+//     public:
+//         Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
+//             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
+//         {
+//             namedWindow("Image", WINDOW_OPENGL);
+//         }
+
+//         // Visualizer's process
+//         void process() override
+//         {
+//             // 
+//             for (int i = 0; i < width; i++) {
+//                 for (int j = 0; j < height; j++) {
+//                     for(int x = 0; x < px_width; x++) {
+//                         for(int y = 0; y < px_height; y++) {
+//                             image.at<uint8_t>(px_height * j + y, px_width * i + x) = inputbufferptr[width * j + i];
+//                         }
+//                     }
+//                 }
+//             }
+
+//             // Convert the matrix to a color image for visualization
+//             Mat colorImage;
+//             applyColorMap(image, colorImage, COLORMAP_JET);
+            
+//             // Display the color image
+//             imshow("Image", colorImage);
+
+//             // Waits 1ms
+//             waitKey(1);
+//         }
+
+//     private:
+//         Mat image;
+        
+// };
+
+////// Data transfer //////
+
+// Processes IQ data to make Range-Doppler map
+// class RangeDoppler : public RadarBlock
+// {
+//     public:
+//         RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+//         {
+//             FAST_TIME = fast_time;
+//             SLOW_TIME = slow_time;
+//             RX = rx;
+//             TX = tx;
+//             IQ = iq;
+//             SIZE = TX*RX*FAST_TIME*SLOW_TIME;
+//             SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;
+//             adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+//             adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
+//             rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));
+//             rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));
+//             rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
+//         }
+
+//         void blackman_window(float* arr, int fast_time){
+//             for(int i = 0; i<fast_time; i++)
+//                 arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
+//         }
+
+//         void hann_window(float* arr, int fast_time){
+//             for(int i = 0; i<fast_time; i++)
+//                 arr[i] = 0.5 * (1 - cos((2 * M_PI * i) / (fast_time - 1)));
+//         }
+        
+//         void no_window(float* arr, int fast_time){
+//             for(int i = 0; i<fast_time; i++)
+//                 arr[i] = 1;
+//         }
+//         void readFile(const std::string& filename, float* arr, int size) {
+//             std::ifstream file(filename);
+//             if (file.is_open()) {
+//                 std::string line;
+                
+//                 int i = 0;
+//                 while (std::getline(file, line)) {
+//                     if(i > size){
+//                         std::cerr << "Error: More samples than SIZE " << filename << std::endl;
+//                         break;
+//                     }
+//                     float value = std::stof(line);
+//                     arr[i] = value;
+//                     i++;
+//                 }
+//                 std::cout << "File Successfully read!" << std::endl;
+//                 file.close();
+//             } else {
+//                 std::cerr << "Error: Could not open file " << filename << std::endl;
+//             }
+//         }
+
+//         int save_2d_array(float* arr, int width, int length, const char* filename) {
+//             std::ofstream outfile(filename);
+//             for (int i=0; i<length; i++) {
+//                 for (int j=0; j<width; j++) {
+//                 outfile << arr[i*width+j] << " ";
+//                 }
+//                 outfile << std::endl;
+//             }
+
+//             //outfile.close();
+//             std::cout << "Array saved to file. " << std::endl;
+//             return 0;
+//         }
+
+//         int save_1d_array(float* arr, int width, int length, const char* filename) {
+//             std::ofstream outfile(filename);
+//             for (int i=0; i<length*width; i++) {
+//                 outfile << arr[i] << std::endl;
+//             }
+
+//             //outfile.close();
+//             std::cout << "Array saved to file. " << std::endl;
+//             return 0;
+//         }
+
+//         // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
+//         void getIndices(int index_1D, int* indices){
+//             int iq=2;  
+//             int i0 = index_1D/(RX*IQ*FAST_TIME*TX);
+//             int i1 = index_1D%(RX*IQ*FAST_TIME*TX);
+//             int i2 = i1%(RX*IQ*FAST_TIME);
+//             int i3 = i2%(RX*IQ);
+//             int i4 = i3%(RX);
+            
+//             indices[2] = i0;                    // SLOW_TIME | Chirp#
+//             indices[0] = i1/(RX*IQ*FAST_TIME);  // TX#
+//             indices[3] = i2/(RX*IQ);            // FAST_TIME | Range#
+//             indices[4] = i3/(RX);                 // IQ
+//             indices[1] = i4;                    // RX#
+//         }
+
+//         void shape_cube(float* in, float* mid, std::complex<float>* out, std::string& window_type) { 
+//             int rx=0;
+//             int tx=0;
+//             int iq=0;
+//             int fast_time=0;
+//             int slow_time=0;
+//             int indices[5] = {0};
+//             float window[FAST_TIME];
+//             if(window_type.compare("blackman") == 0)
+//                 blackman_window(window, FAST_TIME);
+//             else if(window_type.compare("hann") == 0)
+//                 hann_window(window, FAST_TIME);
+//             else
+//                 no_window(window, FAST_TIME);
+            
+//             for (int i =0; i<SIZE_W_IQ; i++) {
+//                 getIndices(i, indices);
+//                 tx=indices[0]*RX*SLOW_TIME*FAST_TIME*IQ;
+//                 rx=indices[1]*SLOW_TIME*FAST_TIME*IQ;
+//                 slow_time=indices[2]*FAST_TIME*IQ;
+//                 fast_time=indices[3]*IQ;
+//                 iq=indices[4];
+//                 mid[tx+rx+slow_time+fast_time+iq]=in[i]*window[fast_time/IQ];
+//             }
+
+//             for(int i=0; i<SIZE; i++){
+//                 out[i]=std::complex<float>(mid[2*i+0], mid[2*i+1]);
+//             }
+//         }
+
+//         int compute_range_doppler(std::complex<float>* adc, std::complex<float>* rdm) {
+//             const int rank = 2;
+//             const int n[] = {SLOW_TIME, FAST_TIME};
+//             const int howmany = TX*RX;
+//             const int idist = SLOW_TIME*FAST_TIME;
+//             const int odist = SLOW_TIME*FAST_TIME;
+//             const int istride = 1;
+//             const int ostride = 1;
+
+//             fftwf_plan plan = fftwf_plan_many_dft(rank, n, howmany,
+//                                 reinterpret_cast<fftwf_complex*>(adc), n, istride, idist,
+//                                 reinterpret_cast<fftwf_complex*>(rdm), n, ostride, odist,
+//                                 FFTW_FORWARD, FFTW_ESTIMATE);
+
+//             fftwf_execute(plan);
+//             return 0;
+//         }
+
+//         int compute_mag_norm(std::complex<float>* rdm_complex, float* rdm_norm) {
+//             float norm, log;
+//             std::complex<float> val; 
+//             for(int i=0; i<SIZE; i++) {
+//                 val=rdm_complex[i];
+//                 norm=std::norm(val);
+//                 log=log2f(norm)/2.0f;
+//                 rdm_norm[i]=log;
+//             }
+//             return 0;
+//         }
+
+//         // rdm_avg should be zero-filled
+//         int averaged_rdm(float* rdm_norm, float* rdm_avg) {
+//             int idx;
+//             const int VIRT_ANTS = RX*TX;
+//             const int RD_BINS = SLOW_TIME*FAST_TIME;
+            
+//             for (int i=0; i<(VIRT_ANTS); i++) {
+//                 for (int j=0; j<(RD_BINS); j++) {
+//                 idx=i*(RD_BINS)+j;
+//                 rdm_avg[j]+=rdm_norm[idx]/((float) RD_BINS);
+//                 }
+//             }
+//             return 0;   
+//         }
+//         void process() 
+//         {
+//             readFile("../data/adc_data/adc_data00.txt", adc_data_flat, SIZE_W_IQ);
+//             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
+//             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
+//             compute_range_doppler(adc_data, rdm_data);
+//             compute_mag_norm(rdm_data, rdm_norm);
+//             averaged_rdm(rdm_norm, rdm_avg);
+//             printf("Range-Doppler map done!");
+//         }
+
+//         private: 
+//             int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
+//             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
+//             std::complex<float>* rdm_data;
+//             std::complex<float>* adc_data;
+        
+// };
 
 // Calculates speed of incoming data
 void calc_speed(int connfd)
