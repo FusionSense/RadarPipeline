@@ -1,6 +1,6 @@
 using namespace std;
 using namespace cv;
-
+using namespace std::chrono;
 // Base class used for other modules
 class RadarBlock
 {
@@ -342,6 +342,7 @@ class RangeDoppler : public RadarBlock
             for(int i = 0; i < FAST_TIME*SLOW_TIME; i++)
                 arr[i] = fftshifted[i];
         }
+
         int compute_mag_norm(std::complex<float>* rdm_complex, float* rdm_norm) {
             float norm, log;
             std::complex<float> val; 
@@ -360,7 +361,6 @@ class RangeDoppler : public RadarBlock
             const int RD_BINS = SLOW_TIME*FAST_TIME;
             float max,min;
             
-   
             for (int i=0; i<(VIRT_ANTS); i++) {
                 for (int j=0; j<(RD_BINS); j++) {
                     idx=i*(RD_BINS)+j;
@@ -387,13 +387,18 @@ class RangeDoppler : public RadarBlock
         
         void process(const char* filename)
         {
+            
             readFile(filename, adc_data_flat, SIZE_W_IQ);
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
+            auto start = high_resolution_clock::now();
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
             averaged_rdm(rdm_norm, rdm_avg);
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, "./out.txt");
+            auto stop = high_resolution_clock::now();
+            auto duration = duration_cast<microseconds>(stop - start);
+            std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
             printf("Range-Doppler map done! \n");
         }
 
