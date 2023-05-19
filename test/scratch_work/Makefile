@@ -7,7 +7,7 @@ CXX=g++
 # -std=c++11: use the C++11 standard
 CXXFLAGS=-Wall -Wextra -pedantic -std=c++11
 # LDFLAGS are linker flags
-# -lfftw3f: link with the FFTW3 library
+# -lfftw3f: link with the FFTW3 library (f is for floats instead of the default double library)
 # -lm: link with the math library (for the -lm flag)
 LDFLAGS=-lfftw3f -lm
 
