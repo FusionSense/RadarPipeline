@@ -127,7 +127,7 @@ class Visualizer : public RadarBlock
     int width = 64;
     int height = 512;
 
-    int px_width = 18;
+    int px_width = 16;
     int px_height = 2;
 
     public:
@@ -146,7 +146,7 @@ class Visualizer : public RadarBlock
                 for (int j = 0; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
                         for(int y = 0; y < px_height; y++) {
-                            image.at<uint8_t>(px_height * j + y, px_width * i + x) = static_cast<uint8_t>(inputbufferptr[width*height - (width*height - height * i + j)]);
+                            image.at<uint8_t>(px_height * j + y, px_width * i + x) = static_cast<uint8_t>(inputbufferptr[width*height - ((width-1)*height - height * i + j)]);
                         }
                     }
                 }
@@ -155,7 +155,7 @@ class Visualizer : public RadarBlock
             // Convert the matrix to a color image for visualization
             Mat colorImage;
             applyColorMap(image, colorImage, COLORMAP_JET);
-            
+ 
             // Display the color image
             imshow("Image", colorImage);
 
