@@ -17,7 +17,7 @@ int main()
     cout << "\n" << endl;
 
     // New block
-    RadarBlock obj(INPUT_SIZE, OUTPUT_SIZE);
+    RadarBlock obj(INPUT_SIZE, OUTPUT_SIZE, true);
 
     // Setting inputs
     obj.setBufferPointer(in_bufferptr);
