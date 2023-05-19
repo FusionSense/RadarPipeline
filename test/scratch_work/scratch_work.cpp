@@ -157,3 +157,4 @@ int main() {
   save_2d_array(rdm_avg, FAST_TIME, SLOW_TIME, "./out.txt");
   return 0;
 }
+ 
