@@ -18,8 +18,7 @@
 #include <cmath>
 #include <fftw3.h>
 #include <fstream>
-#include SERVER_PARAMS
-#include CLIENT_PARAMS
+
 #define SA struct sockaddr
 #include <iostream>
 #include <cstring>
