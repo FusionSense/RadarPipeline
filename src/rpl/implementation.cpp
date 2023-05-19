@@ -127,14 +127,14 @@ class Visualizer : public RadarBlock
     int width = 64;
     int height = 512;
 
-    int px_width = 16;
-    int px_height = 2;
+    int px_width = 10;
+    int px_height = 1;
 
     public:
         Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
         {
-            namedWindow("Image", WINDOW_OPENGL);
+            namedWindow("Image");
         }
 
         // Visualizer's process
