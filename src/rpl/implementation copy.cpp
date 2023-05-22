@@ -138,9 +138,10 @@ class Visualizer : public RadarBlock
         }
 
         // Visualizer's process
-        void process()
+        void process(int wait_time)
         {
             // 
+
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
@@ -162,13 +163,8 @@ class Visualizer : public RadarBlock
             waitKey(wait_time);
         }
 
-        void setWaitTime(int num){
-            wait_time = num;
-        }
-
     private:
         Mat image;
-        int wait_time;
         
 };
 
@@ -211,10 +207,6 @@ class RangeDoppler : public RadarBlock
         float* getBufferPointer()
         {
             return adc_data_flat;
-        }
-
-        void setBufferPointer(uint16_t* arr){
-            input = arr;
         }
 
         float* getVisualizePointer()
@@ -400,25 +392,25 @@ class RangeDoppler : public RadarBlock
             return 0;   
         }
         
-        void process()
+        void process(const char* filename = nullptr, uint16_t* input = nullptr)
         {
-            for(int i = 0; i<SIZE_W_IQ; i++){
-                adc_data_flat[i] = (float)input[i];
-                if( i>90 && i<110)
-                    std::cout<< adc_data_flat[i] << "   |    " << input[i] << std::endl;
+            if (filename == nullptr){
+                for(int i = 0; i<SIZE_W_IQ; i++)
+                    adc_data_flat[i] = (float)input[i];
             }
+            else
+                readFile(filename, adc_data_flat, SIZE_W_IQ);
+            
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             auto start = high_resolution_clock::now();
-            std::cout << "1: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
             averaged_rdm(rdm_norm, rdm_avg);
-            std::cout << "3: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, "./out.txt");
             auto stop = high_resolution_clock::now();
             auto duration = duration_cast<microseconds>(stop - start);
-            // std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
+            std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
             printf("Range-Doppler map done! \n");
         }
 
@@ -427,7 +419,6 @@ class RangeDoppler : public RadarBlock
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float> *rdm_data, *adc_data;
             fftwf_plan plan;
-            uint16_t* input;
             const char *WINDOW_TYPE;
         
 };
@@ -457,7 +448,6 @@ class DataAcquisition : public RadarBlock
             packets_read = 0;
             buffer=reinterpret_cast<char*>(malloc(BUFFER_SIZE*sizeof(char)));
             packet_data=reinterpret_cast<uint16_t*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
-            first_packet = false;
             //packet_data=reinterpret_cast<float*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
 
             
@@ -492,18 +482,12 @@ class DataAcquisition : public RadarBlock
             std::cout << "Socket Binded Success!" << std::endl;
             return 0;
         }
-        
-        int close_socket(){
-            close(sockfd);
-            return 0;
-        }
 
         // read_socket will generate the buffer object that holds all raw ADC data
         void read_socket(){
             // n is the packet size in bytes (including sequence number and byte count)
             n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
             buffer[n] = '\0'; // Null-terminate the buffer
-            set_packet_data();
         }
 
         // get_packet_num will look at the buffer and return the packet number
@@ -555,27 +539,24 @@ class DataAcquisition : public RadarBlock
         {
             // create buffer array of preset size to hold one packet
             // buffer[BUFFER_SIZE];
-            // create_bind_socket();
+            create_bind_socket();
             // while true loop to get a single frame of data from UDP 
-            
             while (true)
-                {
-                    read_socket();
-                    // get_packet_num();  //optional 
-                    // get_byte_count();  //optional
-                    set_frame_data();
-                    
-                    if (end_of_frame() == 1){
-                        printf("End of frame found \n");
-                        printf("IN DAQ: First data in frame = %d \n", frame_data[100]);
-                        // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, "./out.txt");
-                        packets_read = 0;
-                        // first_packet = true;
-                        // close(sockfd);
-                        break;
-                    }
+            {
+                read_socket();
+                get_packet_num();  //optional 
+                get_byte_count();  //optional
+                set_packet_data();
+                set_frame_data();
+                if (end_of_frame() == 1){
+                    // printf("End of frame found \n");
+                    // printf("First data in frame = %d \n", frame_data[0]);
+                    // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, "./out.txt");
+                    packets_read = 0;
+                    close(sockfd);
+                    break;
                 }
-
+            }
         }
 
         int save_1d_array(uint16_t* arr, int width, int length, const char* filename) {
@@ -604,6 +585,5 @@ class DataAcquisition : public RadarBlock
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float>* rdm_data;
             std::complex<float>* adc_data;
-            bool first_packet;
         
 };

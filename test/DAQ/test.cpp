@@ -27,14 +27,16 @@ int main()
     float* in_visualizeptr = rdm.getVisualizePointer();
 
     rdmplot.setBufferPointer(in_visualizeptr);
+    rdm.setBufferPointer(in_bufferptr);
     daq.create_bind_socket();
-    for(int i = 0; i<20 ; i++){
+    rdmplot.setWaitTime(180);
+
+    for(int i = 0; i<1 ; i++){
         std::cout<<"LOOP = " << i << "                                      OTHER : " << in_visualizeptr[100] <<  std::endl;
         daq.process();
-        rdm.process(nullptr, in_bufferptr); 
-        rdmplot.process(180);
-        
-        // cv::destroyAllWindows();
+        rdm.process(); 
+        rdmplot.process();
+
     }
     daq.close_socket();
     
