@@ -34,7 +34,7 @@ int main()
     obj.setFramePointer(in_frameptr);
 
     // Multi-threading this block
-    thread myThread(updateBuffer, in_bufferptr, in_frameptr);
+    // thread myThread(updateBuffer, in_bufferptr, in_frameptr);
     obj.process();
 
     // Starts Visualizer iteration
