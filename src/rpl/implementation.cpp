@@ -138,10 +138,9 @@ class Visualizer : public RadarBlock
         }
 
         // Visualizer's process
-        void process() override
+        void process(int wait_time)
         {
             // 
-
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
@@ -160,7 +159,7 @@ class Visualizer : public RadarBlock
             imshow("Image", colorImage);
 
             // Waits 1ms
-            waitKey(0);
+            waitKey(wait_time);
         }
 
     private:
@@ -168,29 +167,30 @@ class Visualizer : public RadarBlock
         
 };
 
-////// Data transfer //////
-
 // Processes IQ data to make Range-Doppler map
 class RangeDoppler : public RadarBlock
 {
     public:
-        RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq, const char* win) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+        RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq, const char* win = "blackman") : RadarBlock(fast_time*slow_time,fast_time*slow_time)
         {
-            WINDOW_TYPE = win;
-            FAST_TIME = fast_time;
-            SLOW_TIME = slow_time;
-            RX = rx;
-            TX = tx;
-            IQ = iq;
-            SIZE = TX*RX*FAST_TIME*SLOW_TIME;
-            SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;
-            adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
-            adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
-            adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));
-            rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));
-            rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));
-            rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));
-            const int rank = 2;
+            // RANGE DOPPLER PARAMETER INITIALIZATION
+            WINDOW_TYPE = win;          //Determines what type of windowing will be cone
+            FAST_TIME = fast_time;      //Initializes the number of fast time samples | # of range samples
+            SLOW_TIME = slow_time;      //Initializes the number of slow time samples | # of doppler samples
+            RX = rx;    // # of Rx
+            TX = tx;    // # of Tx
+            IQ = iq;    // Equals to 2 as there is both I and Q data
+            SIZE = TX*RX*FAST_TIME*SLOW_TIME;           // Size of the total number of COMPLEX samples from ONE frame
+            SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;   // Size of the total number of separate IQ sampels from ONE frame
+            adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));                          // allocate mem for Separate IQ adc data from Data aquisition
+            adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);                                     // allocate mem for COMPLEX adc data from Data aquisition 
+            adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));                      // allocate mem for reorganized/reshaped adc data
+            rdm_data = reinterpret_cast<std::complex<float>*>(malloc(SIZE * sizeof(std::complex<float>)));      // allocate mem for processed complex adc data
+            rdm_norm = reinterpret_cast<float*>(malloc(SIZE * sizeof(float)));                                  // allocate mem for processed magnitude adc data
+            rdm_avg = reinterpret_cast<float*>(calloc(SLOW_TIME*FAST_TIME, sizeof(float)));                     // allocate mem for averaged adc data across all virtual antennas
+            
+            // FFT SETUP PARAMETERS
+            const int rank = 2;     // Determines the # of dimensions for FFT
             const int n[] = {SLOW_TIME, FAST_TIME};
             const int howmany = TX*RX;
             const int idist = SLOW_TIME*FAST_TIME;
@@ -200,28 +200,21 @@ class RangeDoppler : public RadarBlock
             plan = fftwf_plan_many_dft(rank, n, howmany,
                                 reinterpret_cast<fftwf_complex*>(adc_data), n, istride, idist,
                                 reinterpret_cast<fftwf_complex*>(rdm_data), n, ostride, odist,
-                                FFTW_FORWARD, FFTW_ESTIMATE);
+                                FFTW_FORWARD, FFTW_ESTIMATE);      // create the FFT plan
         }
         // Retrieve outputbuffer pointer
         float* getBufferPointer()
         {
-            return rdm_avg;
-        }
-        void blackman_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
+            return adc_data_flat;
         }
 
-        void hann_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 0.5 * (1 - cos((2 * M_PI * i) / (fast_time - 1)));
+        float* getVisualizePointer()
+        {
+            return rdm_avg;
         }
-        
-        void no_window(float* arr, int fast_time){
-            for(int i = 0; i<fast_time; i++)
-                arr[i] = 1;
-        }
-        void readFile(const std::string& filename, float* arr, int size) {
+
+        // FILE READING METHODS
+        void readFile(const std::string& filename, float* arr, int size) {      //
             std::ifstream file(filename);
             if (file.is_open()) {
                 std::string line;
@@ -268,6 +261,22 @@ class RangeDoppler : public RadarBlock
             return 0;
         }
 
+        // WINDOW TYPES
+        void blackman_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 0.42 - 0.5*cos(2*M_PI*i/(fast_time-1))+0.08*cos(4*M_PI*i/(fast_time-1));
+        }
+
+        void hann_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 0.5 * (1 - cos((2 * M_PI * i) / (fast_time - 1)));
+        }
+        
+        void no_window(float* arr, int fast_time){
+            for(int i = 0; i<fast_time; i++)
+                arr[i] = 1;
+        }
+        
         // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
         void getIndices(int index_1D, int* indices){
             int iq=2;  
@@ -382,13 +391,14 @@ class RangeDoppler : public RadarBlock
             return 0;   
         }
         
-        
-        
-        
-        void process(const char* filename)
+        void process(const char* filename = nullptr, uint16_t* input = nullptr)
         {
-            
-            readFile(filename, adc_data_flat, SIZE_W_IQ);
+            if (filename == nullptr){
+                for(int i = 0; i<SIZE_W_IQ; i++)
+                    adc_data_flat[i] = (float)input[i];
+            }
+            else
+                readFile(filename, adc_data_flat, SIZE_W_IQ);
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             auto start = high_resolution_clock::now();
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
@@ -398,7 +408,7 @@ class RangeDoppler : public RadarBlock
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, "./out.txt");
             auto stop = high_resolution_clock::now();
             auto duration = duration_cast<microseconds>(stop - start);
-            std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
+            // std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
             printf("Range-Doppler map done! \n");
         }
 
@@ -408,5 +418,181 @@ class RangeDoppler : public RadarBlock
             std::complex<float> *rdm_data, *adc_data;
             fftwf_plan plan;
             const char *WINDOW_TYPE;
+        
+};
+
+// Data Acquisition class 
+class DataAcquisition : public RadarBlock
+{ 
+    public:
+        DataAcquisition(uint16_t* input, int buffer_size, int port, int bytes_in_packet, int fast_time, int slow_time, int rx, int tx, int iq_data, int iq_bytes) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+        {
+            BUFFER_SIZE = buffer_size; 
+            PORT = port;
+            BYTES_IN_PACKET = bytes_in_packet;
+            RX = rx;
+            TX = tx;
+            FAST_TIME = fast_time;
+            SLOW_TIME = slow_time;
+            IQ_DATA = iq_data;
+            IQ_BYTES = iq_bytes;
+            frame_data = input;
+    
+            BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ_DATA*IQ_BYTES;
+            BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
+            PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
+            UINT16_IN_PACKET = BYTES_IN_PACKET / 2; //728 entries in packet
+            UINT16_IN_FRAME = BYTES_IN_FRAME / 2;
+            packets_read = 0;
+            buffer=reinterpret_cast<char*>(malloc(BUFFER_SIZE*sizeof(char)));
+            packet_data=reinterpret_cast<uint16_t*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
+            first_packet = false;
+            //packet_data=reinterpret_cast<float*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
+
+            
+
+        }
+
+        // create_bind_socket - returns a socket object titled sockfd
+        int create_bind_socket(){
+            // Create a UDP socket file descriptor which is UNbounded
+            if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) <  0){
+                perror("Socket creation failed"); 
+                exit(EXIT_FAILURE);
+            }
+
+            memset(&servaddr, 0, sizeof(servaddr)); 
+            memset(&cliaddr, 0, sizeof(cliaddr)); 
+
+            // Filling in the servers (DCA1000EVMs) information
+            servaddr.sin_family     = AF_INET;      //this means it is a IPv4 address
+            servaddr.sin_addr.s_addr= INADDR_ANY;   //sets address to accept incoming messages
+            servaddr.sin_port       = htons(PORT);  //port number to accept from
+            
+            // Now we bind the socket with the servers (DCA1000EVMs) address 
+            // if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) 
+
+            // Bind the socket to any available IP address and a specific port
+            bzero(&servaddr, sizeof(servaddr));
+            servaddr.sin_family = AF_INET;
+            servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+            servaddr.sin_port = htons(PORT);
+            bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+            std::cout << "Socket Binded Success!" << std::endl;
+            return 0;
+        }
+        
+        int close_socket(){
+            close(sockfd);
+            return 0;
+        }
+
+        // read_socket will generate the buffer object that holds all raw ADC data
+        void read_socket(){
+            // n is the packet size in bytes (including sequence number and byte count)
+            n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
+            buffer[n] = '\0'; // Null-terminate the buffer
+            set_packet_data();
+        }
+
+        // get_packet_num will look at the buffer and return the packet number
+        uint32_t get_packet_num(){
+            uint32_t packet_number = ((buffer[0] & 0xFF) << 0)  |
+                                    ((buffer[1] & 0xFF) << 8)  |
+                                    ((buffer[2] & 0xFF) << 16) |
+                                    ((long) (buffer[3] & 0xFF) << 24);
+            return packet_number;
+        }
+        // get_byte_count will look at the buffer and return the byte count of the packet
+        uint64_t get_byte_count(){
+            uint64_t byte_count = ((buffer[4] & 0xFF) << 0)  |
+                                ((buffer[5] & 0xFF) << 8)  |
+                                ((buffer[6] & 0xFF) << 16) |
+                                ((buffer[7] & 0xFF) << 24) |
+                                ((unsigned long long) (buffer[8] & 0xFF) << 32) |
+                                ((unsigned long long) (buffer[9] & 0xFF) << 40) |
+                                ((unsigned long long) (0x00) << 48) |
+                                ((unsigned long long) (0x00) << 54);
+            return byte_count;
+        }
+
+        void set_packet_data(){
+            // printf("Size of packet data = %d \n", BYTES_IN_PACKET);
+            for (int i = 0; i< BYTES_IN_PACKET/2; i++)
+            {
+                packet_data[i] =  buffer[2*i+10] | (buffer[2*i+11] << 8);
+            }
+        }
+
+        void set_frame_data(){
+            //Add packet_data to frame_data
+            for (int i = UINT16_IN_PACKET*packets_read; i < (UINT16_IN_PACKET*(packets_read+1)); i++)
+            {
+                frame_data[i] = packet_data[i%UINT16_IN_PACKET];
+            }
+            packets_read++;
+        }
+
+        int end_of_frame(){
+            uint64_t byte_mod = (packets_read*BYTES_IN_PACKET) % BYTES_IN_FRAME_CLIPPED;
+            if (byte_mod == 0) //end of frame found
+                return 1;           
+            return 0;
+        }
+        
+        void process() 
+        {
+            // create buffer array of preset size to hold one packet
+            // buffer[BUFFER_SIZE];
+            // create_bind_socket();
+            // while true loop to get a single frame of data from UDP 
+            
+            while (true)
+                {
+                    read_socket();
+                    // get_packet_num();  //optional 
+                    // get_byte_count();  //optional
+                    set_frame_data();
+                    
+                    if (end_of_frame() == 1){
+                        printf("End of frame found \n");
+                        printf("IN DAQ: First data in frame = %d \n", frame_data[0]);
+                        // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, "./out.txt");
+                        packets_read = 0;
+                        // first_packet = true;
+                        // close(sockfd);
+                        break;
+                    }
+                }
+
+        }
+
+        int save_1d_array(uint16_t* arr, int width, int length, const char* filename) {
+            std::ofstream outfile(filename);
+            for (int i=0; i<length*width; i++) {
+                outfile << arr[i] << std::endl;
+            }
+
+            //outfile.close();
+            std::cout << "Array saved to file. " << std::endl;
+            return 0;
+        }
+
+        private: 
+            int BUFFER_SIZE, PORT, BYTES_IN_PACKET, RX, TX, FAST_TIME, SLOW_TIME, IQ_DATA, IQ_BYTES; 
+            uint64_t BYTES_IN_FRAME, BYTES_IN_FRAME_CLIPPED, PACKETS_IN_FRAME_CLIPPED, UINT16_IN_PACKET, UINT16_IN_FRAME, packets_read;
+            int sockfd;                             // socket file descriptor
+            struct sockaddr_in servaddr, cliaddr;   // initialize socket
+            char* buffer;
+            uint16_t* packet_data; 
+            socklen_t len; 
+            int n;  // n is the packet size in bytes (including sequence number and byte count)
+            uint32_t packet_num;
+            uint16_t* frame_data;
+            
+            float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
+            std::complex<float>* rdm_data;
+            std::complex<float>* adc_data;
+            bool first_packet;
         
 };
