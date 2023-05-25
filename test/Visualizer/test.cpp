@@ -35,7 +35,7 @@ int main()
 
     // Multi-threading this block
     // thread myThread(updateBuffer, in_bufferptr, in_frameptr);
-    obj.process();
+    // obj.process();
 
     // Starts Visualizer iteration
     obj.iteration();

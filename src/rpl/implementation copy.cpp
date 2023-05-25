@@ -101,7 +101,7 @@ class RadarBlock
 
         // Private functions
         // Listens for previous block (overwritten in some cases)
-        void listen()
+        virtual void listen()
         {
             for(;;)
             {
@@ -134,14 +134,14 @@ class Visualizer : public RadarBlock
         Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
         {
+            
             namedWindow("Image");
         }
 
         // Visualizer's process
-        void process(int wait_time)
+        void process() override
         {
             // 
-
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
@@ -163,8 +163,18 @@ class Visualizer : public RadarBlock
             waitKey(wait_time);
         }
 
+        void setWaitTime(int num){
+            wait_time = num;
+        }
+        
+        void listen() override
+        {
+            return;
+        }
+
     private:
         Mat image;
+        int wait_time;
         
 };
 
@@ -206,12 +216,11 @@ class RangeDoppler : public RadarBlock
         // Retrieve outputbuffer pointer
         float* getBufferPointer()
         {
-            return adc_data_flat;
+            return rdm_avg;
         }
 
-        float* getVisualizePointer()
-        {
-            return rdm_avg;
+        void setBufferPointer(uint16_t* arr){
+            input = arr;
         }
 
         // FILE READING METHODS
@@ -392,25 +401,25 @@ class RangeDoppler : public RadarBlock
             return 0;   
         }
         
-        void process(const char* filename = nullptr, uint16_t* input = nullptr)
+        void process() override
         {
-            if (filename == nullptr){
-                for(int i = 0; i<SIZE_W_IQ; i++)
-                    adc_data_flat[i] = (float)input[i];
+            for(int i = 0; i<SIZE_W_IQ; i++){
+                adc_data_flat[i] = (float)input[i];
+                if( i>90 && i<110)
+                    std::cout<< adc_data_flat[i] << "   |    " << input[i] << std::endl;
             }
-            else
-                readFile(filename, adc_data_flat, SIZE_W_IQ);
-            
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);
             auto start = high_resolution_clock::now();
+            std::cout << "1: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
             averaged_rdm(rdm_norm, rdm_avg);
+            std::cout << "3: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, "./out.txt");
             auto stop = high_resolution_clock::now();
             auto duration = duration_cast<microseconds>(stop - start);
-            std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
+            // std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
             printf("Range-Doppler map done! \n");
         }
 
@@ -419,6 +428,7 @@ class RangeDoppler : public RadarBlock
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float> *rdm_data, *adc_data;
             fftwf_plan plan;
+            uint16_t* input;
             const char *WINDOW_TYPE;
         
 };
@@ -427,7 +437,7 @@ class RangeDoppler : public RadarBlock
 class DataAcquisition : public RadarBlock
 { 
     public:
-        DataAcquisition(uint16_t* input, int buffer_size, int port, int bytes_in_packet, int fast_time, int slow_time, int rx, int tx, int iq_data, int iq_bytes) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+        DataAcquisition(int buffer_size, int port, int bytes_in_packet, int fast_time, int slow_time, int rx, int tx, int iq_data, int iq_bytes) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
         {
             BUFFER_SIZE = buffer_size; 
             PORT = port;
@@ -438,8 +448,8 @@ class DataAcquisition : public RadarBlock
             SLOW_TIME = slow_time;
             IQ_DATA = iq_data;
             IQ_BYTES = iq_bytes;
-            frame_data = input;
-    
+            SIZE_W_IQ = TX*RX*IQ_DATA*SLOW_TIME*FAST_TIME;
+            frame_data = reinterpret_cast<uint16_t*>(malloc(SIZE_W_IQ*sizeof(uint16_t)));
             BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ_DATA*IQ_BYTES;
             BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
             PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
@@ -448,10 +458,8 @@ class DataAcquisition : public RadarBlock
             packets_read = 0;
             buffer=reinterpret_cast<char*>(malloc(BUFFER_SIZE*sizeof(char)));
             packet_data=reinterpret_cast<uint16_t*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
-            //packet_data=reinterpret_cast<float*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
 
             
-
         }
 
         // create_bind_socket - returns a socket object titled sockfd
@@ -482,12 +490,18 @@ class DataAcquisition : public RadarBlock
             std::cout << "Socket Binded Success!" << std::endl;
             return 0;
         }
+        
+        int close_socket(){
+            close(sockfd);
+            return 0;
+        }
 
         // read_socket will generate the buffer object that holds all raw ADC data
         void read_socket(){
             // n is the packet size in bytes (including sequence number and byte count)
             n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
             buffer[n] = '\0'; // Null-terminate the buffer
+            set_packet_data();
         }
 
         // get_packet_num will look at the buffer and return the packet number
@@ -534,30 +548,6 @@ class DataAcquisition : public RadarBlock
                 return 1;           
             return 0;
         }
-        
-        void process() 
-        {
-            // create buffer array of preset size to hold one packet
-            // buffer[BUFFER_SIZE];
-            create_bind_socket();
-            // while true loop to get a single frame of data from UDP 
-            while (true)
-            {
-                read_socket();
-                get_packet_num();  //optional 
-                get_byte_count();  //optional
-                set_packet_data();
-                set_frame_data();
-                if (end_of_frame() == 1){
-                    // printf("End of frame found \n");
-                    // printf("First data in frame = %d \n", frame_data[0]);
-                    // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, "./out.txt");
-                    packets_read = 0;
-                    close(sockfd);
-                    break;
-                }
-            }
-        }
 
         int save_1d_array(uint16_t* arr, int width, int length, const char* filename) {
             std::ofstream outfile(filename);
@@ -570,20 +560,54 @@ class DataAcquisition : public RadarBlock
             return 0;
         }
 
+
+        uint16_t* getBufferPointer(){
+            return frame_data;
+        }
+
+        void process() override
+        {
+            // create buffer array of preset size to hold one packet
+            // buffer[BUFFER_SIZE];
+            // create_bind_socket();
+            // while true loop to get a single frame of data from UDP 
+            // std::cout<< 
+            while (true)
+                {
+                    read_socket();
+                    // get_packet_num();  //optional 
+                    // get_byte_count();  //optional
+                    set_frame_data();
+                    
+                    if (end_of_frame() == 1){
+                        printf("End of frame found \n");
+                        printf("IN DAQ: First data in frame = %d \n", frame_data[100]);
+                        // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, "./out.txt");
+                        packets_read = 0;
+                        // first_packet = true;
+                        // close(sockfd);
+                        break;
+                    }
+                }
+
+        }
+
         private: 
-            int BUFFER_SIZE, PORT, BYTES_IN_PACKET, RX, TX, FAST_TIME, SLOW_TIME, IQ_DATA, IQ_BYTES; 
-            uint64_t BYTES_IN_FRAME, BYTES_IN_FRAME_CLIPPED, PACKETS_IN_FRAME_CLIPPED, UINT16_IN_PACKET, UINT16_IN_FRAME, packets_read;
+            int BUFFER_SIZE, PORT, BYTES_IN_PACKET, RX, TX, FAST_TIME, SLOW_TIME, IQ_DATA, IQ_BYTES, SIZE_W_IQ; 
+            
             int sockfd;                             // socket file descriptor
             struct sockaddr_in servaddr, cliaddr;   // initialize socket
-            char* buffer;
-            uint16_t* packet_data; 
-            socklen_t len; 
-            int n;  // n is the packet size in bytes (including sequence number and byte count)
-            uint32_t packet_num;
-            uint16_t* frame_data;
+            socklen_t len;
             
+            char* buffer;
+            int n;  // n is the packet size in bytes (including sequence number and byte count)
+            
+            uint16_t *packet_data, *frame_data;  
+            uint32_t packet_num;
+            uint64_t BYTES_IN_FRAME, BYTES_IN_FRAME_CLIPPED, PACKETS_IN_FRAME_CLIPPED, UINT16_IN_PACKET, UINT16_IN_FRAME, packets_read;
+            
+            std::complex<float> *rdm_data, *adc_data;
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
-            std::complex<float>* rdm_data;
-            std::complex<float>* adc_data;
+            
         
 };

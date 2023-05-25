@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -Wextra -pedantic
-LDFLAGS = -lfftw3f -lm `pkg-config --cflags --libs opencv4`
+LDFLAGS = -lfftw3f -pthread -lm `pkg-config --cflags --libs opencv4`
 
 SRCS = test.cpp
 OBJS = $(SRCS:.cpp=.o)

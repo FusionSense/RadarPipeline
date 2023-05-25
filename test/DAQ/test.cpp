@@ -14,34 +14,44 @@ int main()
     int bytes_in_packet = 1456; 
     int iq_bytes = 2;
     
-    // Create the Range Doppler Map Object
+    // CONSTRUCTOR INITIATION
+    DataAcquisition daq(buffer_size, port, bytes_in_packet, fast_time, slow_time, rx, tx, iq, iq_bytes);
+
     RangeDoppler rdm(fast_time,slow_time,rx,tx,iq,"blackman");
-    // float* in_bufferptr = rdm.getBufferPointer();
-    // Receive the pointer to the range doppler map.
-    uint16_t* in_bufferptr = new uint16_t[rx*tx*iq*slow_time*fast_time];
-    
-    DataAcquisition daq(in_bufferptr, buffer_size, port, bytes_in_packet, fast_time, slow_time, rx, tx, iq, iq_bytes);
 
-    Visualizer rdmplot(INPUT_SIZE,OUTPUT_SIZE);
+    Visualizer vis(INPUT_SIZE,OUTPUT_SIZE);
 
-    float* in_visualizeptr = rdm.getVisualizePointer();
+    // BUFFER POINTER INITIATION
+    uint16_t *in_bufferptr    = daq.getBufferPointer();
+    float    *in_visualizeptr = rdm.getBufferPointer();
 
-    rdmplot.setBufferPointer(in_visualizeptr);
     rdm.setBufferPointer(in_bufferptr);
-    daq.create_bind_socket();
-    rdmplot.setWaitTime(180);
+    vis.setBufferPointer(in_visualizeptr);
 
-    for(int i = 0; i<1 ; i++){
-        std::cout<<"LOOP = " << i << "                                      OTHER : " << in_visualizeptr[100] <<  std::endl;
-        daq.process();
-        rdm.process(); 
-        rdmplot.process();
+    // FRAME POINTER INITIATION
+    auto frame_daq = daq.getFramePointer();
+    rdm.setFramePointer(frame_daq);
+    auto frame_rdm = rdm.getFramePointer();
+    daq.setFramePointer(frame_rdm);
+    // OTHER PARAMS
+    // daq.create_bind_socket(); // open the socket for listening
+    vis.setWaitTime(1);   
 
-    }
-    daq.close_socket();
-    
-    
+    std::cout << "FRAME --> DAQ: " << *frame_daq << std::endl;
+    std::cout << "FRAME --> RDM: "<< *frame_rdm << std::endl;
+    // std::cout << "FRAME --> VIS: "<< *frame_vis << std::endl;
+
+    thread daqThread(&DataAcquisition::iteration, &daq);
+    thread rdmThread(&RangeDoppler::iteration, &rdm);
+    thread visThread(&Visualizer::iteration, &vis);
+
+    // daq.close_socket();
+
     std::cout << "Test Complete!" << std::endl;
+
+    daqThread.join();
+    rdmThread.join();
+    visThread.join();
 
     return 0;
 }
