@@ -47,5 +47,8 @@
 #define NUM_TX 3
 #define FAST_TIME 512 //ADC Samples
 #define SLOW_TIME 64 //Chirps
+
+#define RANGE_BINS FAST_TIME
+#define DOPPLER_BINS SLOW_TIME
 #define IQ_DATA 2 //Types of IQ (I and Q)
 #define IQ_BYTES 2 
