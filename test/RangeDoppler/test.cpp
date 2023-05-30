@@ -10,9 +10,9 @@
 // waitt CFAR should be done over the averaged samples which is not what I have been doing.
 int cfar(float* rdmap, char* cfarmap) {
     // allocate new array for range CFAR
-    float* cfar_range = reinterpret_cast<float*>(calloc(SIZE, sizeof(float)));
+    float* cfar_range = reinterpret_cast<float*>(calloc(RANGE_BINS*DOPPLER_BINS, sizeof(float)));
     // allocate new array for doppler CFAR
-    float* cfar_doppler = reinterpret_cast<float*>(calloc(SIZE, sizeof(float)));
+    float* cfar_doppler = reinterpret_cast<float*>(calloc(RANGE_BINS*DOPPLER_BINS, sizeof(float)));
  
     int bins_triggered=0;
     
@@ -22,7 +22,7 @@ int cfar(float* rdmap, char* cfarmap) {
     int start_left, end_left, start_right, end_right;
     int row_start, column_start;
     // perform the range convolution
-    for (int j=0; j<DOPPLER_BINS*NUM_RX*NUM_TX; j++) {
+    for (int j=0; j<DOPPLER_BINS; j++) {
 	for (int i=0; i<RANGE_BINS; i++) {
 
 	    cfar_range[row_start+i]=0.0; // zero_out cfar range
@@ -46,31 +46,29 @@ int cfar(float* rdmap, char* cfarmap) {
     }
 
     // perform the doppler convolution (harder since indexes are noncontiguous)
-    for (int j=0; j<NUM_RX*NUM_TX; j++) {
-	for (int k=0; k<RANGE_BINS; k++) {
-	    for (int i=0; i<DOPPLER_BINS; i++) {
-		column_start=k+j*RANGE_BINS*DOPPLER_BINS;
-		// zero out cfar doppler
-		cfar_doppler[row_start+i*RANGE_BINS]=0;
-		// left hand side o=convolution
-		start_left=column_start+RANGE_BINS*std::max(0,i-GUARD_LEN-NOISE_LEN);
-		end_left=column_start+RANGE_BINS*std::max(0,i-GUARD_LEN);
-		for (int z=start_left; z<end_left; z+=RANGE_BINS) {
-		    cfar_doppler[row_start+i*RANGE_BINS]+=rdmap[row_start+z]*normalize;
-		}
-		// right hand side convolution
-		start_right=column_start+RANGE_BINS*std::min(DOPPLER_BINS,i+GUARD_LEN+1);
-		end_right=column_start+RANGE_BINS*std::min(DOPPLER_BINS, i+GUARD_LEN+NOISE_LEN+1);
-		for (int z=start_left; z<end_left; z++) {
-		    cfar_doppler[row_start+i*RANGE_BINS]+=rdmap[row_start+z]*normalize;
-		}
+    for (int k=0; k<RANGE_BINS; k++) {
+	for (int i=0; i<DOPPLER_BINS; i++) {
+	    column_start=k;
+	    // zero out cfar doppler
+	    cfar_doppler[column_start+i*RANGE_BINS]=0;
+	    // left hand side o=convolution
+	    start_left=column_start+RANGE_BINS*std::max(0,i-GUARD_LEN-NOISE_LEN);
+	    end_left=column_start+RANGE_BINS*std::max(0,i-GUARD_LEN);
+	    for (int z=start_left; z<end_left; z+=RANGE_BINS) {
+		cfar_doppler[column_start+i*RANGE_BINS]+=rdmap[column_start+z]*normalize;
+	    }
+	    // right hand side convolution
+	    start_right=column_start+RANGE_BINS*std::min(DOPPLER_BINS,i+GUARD_LEN+1);
+	    end_right=column_start+RANGE_BINS*std::min(DOPPLER_BINS, i+GUARD_LEN+NOISE_LEN+1);
+	    for (int z=start_left; z<end_left; z++) {
+		cfar_doppler[row_start+i*RANGE_BINS]+=rdmap[row_start+z]*normalize;
 	    }
 	}
     }
 
     // compare to threshold to create bitmap
     char b;
-    for (int i=0; i<SIZE; i++) {
+    for (int i=0; i<RANGE_BINS*DOPPLER_BINS; i++) {
 	b=cfar_range[i]>THRESHOLD && cfar_doppler[i]>THRESHOLD;
 	cfarmap[i]=b;
 	bins_triggered+=b;
@@ -81,8 +79,19 @@ int cfar(float* rdmap, char* cfarmap) {
     return bins_triggered;
 }
 
-int cfar_index(char* cfar_map, int num_indices) {
-    std::vec<[int; 2]> indices;
+std::vector<std::array<int, 2>> cfar_index(char* cfar_map, int num_indices) {
+    std::vector<std::array<int, 2>> indices;
+    indices.reserve(num_indices);
+
+    for(int j=0; j<DOPPLER_BINS; j++) {
+	for (int i=0; i<RANGE_BINS; i++) {
+	    if(cfar_map[j*RANGE_BINS+i]) {
+		indices.push_back({i, j});
+	    }
+	}
+    }
+    return indices;
+}
 
 
 
