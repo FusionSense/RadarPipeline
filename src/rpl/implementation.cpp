@@ -141,6 +141,7 @@ class Visualizer : public RadarBlock
         // Visualizer's process
         void process() override
         {
+            auto start = chrono::high_resolution_clock::now();
             // 
             for (int i = 0; i < width; i++) {
                 for (int j = 0; j < height; j++) {
@@ -161,6 +162,10 @@ class Visualizer : public RadarBlock
 
             // Waits 1ms
             waitKey(wait_time);
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration_vis_process = duration_cast<microseconds>(stop - start);
+            std::cout << "VIS Process Time " << duration_vis_process.count() << " microseconds" << std::endl;
+            
         }
 
         void setWaitTime(int num){
@@ -400,7 +405,7 @@ class RangeDoppler : public RadarBlock
             }
             max = 0.0108;
             min = 0.008;
-            std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
+            //std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
             
             scale_rdm_values(rdm_avg, max, min);
             fftshift_rdm(rdm_avg);
@@ -409,13 +414,14 @@ class RangeDoppler : public RadarBlock
         
         void process() override
         {
+            auto start = chrono::high_resolution_clock::now();
             // std::cout<< "RDM PROCESS ACTIVATED" << std::endl;
             for(int i = 0; i<SIZE_W_IQ; i++){
                 adc_data_flat[i] = (float)input[i];
                 // if( i>90 && i<110)
                     // std::cout<< adc_data_flat[i] << "   |    " << input[i] << std::endl;
             }
-            auto start = high_resolution_clock::now();
+            // auto start = high_resolution_clock::now();
             // std::cout << "1: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
@@ -423,12 +429,16 @@ class RangeDoppler : public RadarBlock
             averaged_rdm(rdm_norm, rdm_avg);
             // std::cout << "rdm_data = " << rdm_data[100] << "     |       rdm_norm = " << rdm_norm[100] << "   |    rdm_avg = " << rdm_avg[100] << std::endl;
             // std::cout << "3: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
-            string str = ("./out") + to_string(frame) + ".txt";
+            // string str = ("./out") + to_string(frame) + ".txt";
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, str);
-            auto stop = high_resolution_clock::now();
-            auto duration = duration_cast<microseconds>(stop - start);
+            // auto stop = high_resolution_clock::now();
+            // auto duration = duration_cast<microseconds>(stop - start);
             // std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
             // printf("Range-Doppler map done! \n");
+
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration_rdm_process = duration_cast<microseconds>(stop - start);
+            std::cout << "RDM Process Time " << duration_rdm_process.count() << " microseconds" << std::endl;
         }
 
         private: 
@@ -505,10 +515,20 @@ class DataAcquisition : public RadarBlock
 
         // read_socket will generate the buffer object that holds all raw ADC data
         void read_socket(){
+            auto start = chrono::high_resolution_clock::now();
             // n is the packet size in bytes (including sequence number and byte count)
+
             n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&cliaddr, &len);
             buffer[n] = '\0'; // Null-terminate the buffer
-            set_packet_data();
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration_read_socket = duration_cast<microseconds>(stop - start);
+            std::cout << "Read Socket " << duration_read_socket.count() << std::endl;
+
+            start = chrono::high_resolution_clock::now();
+
+            stop = chrono::high_resolution_clock::now();
+            auto duration_set_packet_data = duration_cast<microseconds>(stop - start);
+            std::cout << "Set Packet Data " << duration_set_packet_data.count() << std::endl;*/
         }
 
         // get_packet_num will look at the buffer and return the packet number
@@ -532,19 +552,21 @@ class DataAcquisition : public RadarBlock
             return byte_count;
         }
 
-        void set_packet_data(){
+        /*void set_packet_data(){
             // printf("Size of packet data = %d \n", BYTES_IN_PACKET);
-            for (int i = 0; i< BYTES_IN_PACKET/2; i++)
+            for (int i = 0; i< UINT16_IN_PACKET; i++)
             {
                 packet_data[i] =  buffer[2*i+10] | (buffer[2*i+11] << 8);
             }
-        }
+        }*/
 
         void set_frame_data(){
             //Add packet_data to frame_data
             for (int i = UINT16_IN_PACKET*packets_read; i < (UINT16_IN_PACKET*(packets_read+1)); i++)
             {
-                frame_data[i] = packet_data[i%UINT16_IN_PACKET];
+                frame_data[i] = buffer[2*(i-UINT16_IN_PACKET*packets_read)+10] | (buffer[2*(i-UINT16_IN_PACKET*packets_read)+11] << 8);
+                // frame_data[i] = packet_data[i%UINT16_IN_PACKET];
+                
             }
             packets_read++;
         }
@@ -589,33 +611,77 @@ class DataAcquisition : public RadarBlock
 
         void process() override
         {
+
+            auto start = chrono::high_resolution_clock::now();
             // create buffer array of preset size to hold one packet
             // buffer[BUFFER_SIZE];
             create_bind_socket();
+            
+            //auto duration_read_socket = duration_cast<microseconds>(stop - start);
+            //auto duration_set_frame_data = duration_cast<microseconds>(stop - start);
+
             // while true loop to get a single frame of data from UDP 
             // std::cout<< "DAQ PROCESS ACTIVATED" << std::endl;
-            std::cout << "FRAME #: " << frame << std::endl;
+            // std::cout << "FRAME #: " << frame << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+            //start = chrono::high_resolution_clock::now();
             while (true)
                 {
-                    read_socket();
-                    // get_packet_num();  //optional 
+                    //std::cout << "Packet Num " << get_packet_num() << std::endl;  //optional 
+                    //rc = poll();
+                    //if (rv == 1)
+                    //{
+                        read_socket();
+                        //start = chrono::high_resolution_clock::now();
+                        set_frame_data();
+                        //stop = chrono::high_resolution_clock::now();
+                        //duration_set_frame_data = duration_cast<microseconds>(stop - start);
+                        //std::cout << "Set Frame Data " << duration_set_frame_data.count() << std::endl;
+                        //std::cout << std::endl;   
+                    //}
                     // get_byte_count();  //optional
-                    set_frame_data();
-                    
+ 
                     if (end_of_frame() == 1){
                         // printf("End of frame found \n");
                         // printf("IN DAQ: First data in frame = %d \n", frame_data[100]);
                         //  for(int i = 91; i<110; i++){
                         //     std::cout<< frame_data[i] << std::endl;
                         // }
-                        string str = ("./out") + to_string(frame) + ".txt";
+                        //stop = chrono::high_resolution_clock::now();
+                        //auto duration_read_write_frame = duration_cast<microseconds>(stop - start);
+
+                        //string str = ("./out") + to_string(frame) + ".txt";
                         // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, str);
                         packets_read = 0;
                         // first_packet = true;
+                        //start = chrono::high_resolution_clock::now();
+
                         close_socket();
+                        //stop = chrono::high_resolution_clock::now();
+                        //auto duration_close_socket = duration_cast<microseconds>(stop - start);
+
+
+                        //std::cout << "Create Socket " << duration_create_socket.count() << std::endl;
+                        //std::cout << std::endl;
+                        //std::cout << "Read/Write Frame " << duration_read_write_frame.count() << std::endl;
+                        //std::cout << std::endl;
+                        //std::cout << "Close Socket " << duration_close_socket.count() << std::endl;
+                        //std::cout << std::endl;
                         break;
                     }
                 }
+            //auto stop = chrono::high_resolution_clock::now();
+            //auto duration = duration_cast<microseconds>(stop - start);
+            //std::cout << "Create Socket " << duration_create_socket.count() << std::endl;
+            //std::cout << std::endl;
+            // auto stop = chrono::high_resolution_clock::now();
+            // auto duration = duration_cast<microseconds>(stop - start);
+            // std::cout << "Process Time " << duration.count() << std::endl;
+            // std::cout << std::endl;
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration_daq_process = duration_cast<microseconds>(stop - start);
+            std::cout << "DAQ Process Time " << duration_daq_process.count() << " microseconds" << std::endl;
+            std::cout << "~~~~~~~~~~~~~~~~~~~END OF SINGLE FRAME~~~~~~~~~~~~~~~~~~~~" << std::endl;
+
 
         }
 
