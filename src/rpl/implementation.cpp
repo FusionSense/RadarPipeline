@@ -130,6 +130,11 @@ class Visualizer : public RadarBlock
     int px_width = 10;
     int px_height = 1;
 
+    float X_SCALE = 0.16;
+    float Y_SCALE = 0.035;
+    int stepSizeX = 64;
+    int stepSizeY = 57;
+
     public:
         Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
@@ -152,13 +157,51 @@ class Visualizer : public RadarBlock
                     }
                 }
             }
-
+            
             // Convert the matrix to a color image for visualization
             Mat colorImage;
             applyColorMap(image, colorImage, COLORMAP_JET);
- 
+            
+            int borderSize = 30;
+            cv::Scalar borderColor(0, 0, 0); // Green color
+
+            // Add the padded border
+            cv::Mat borderedImage;
+            cv::copyMakeBorder(colorImage, borderedImage, borderSize, borderSize, borderSize, borderSize,
+                            cv::BORDER_CONSTANT, borderColor);
+
+            cv::Point origin(borderSize, borderedImage.rows-borderSize);
+            cv::Point xEnd(borderedImage.cols-borderSize, borderedImage.rows-borderSize);
+            cv::Point yEnd(borderSize, borderSize);
+            
+            cv::line(borderedImage, origin, xEnd, cv::Scalar(0, 0, 255), 2);
+            cv::line(borderedImage, origin, yEnd, cv::Scalar(0, 255, 0), 2);
+            
+            //cv::putText(borderedImage, "m/s", xEnd, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 255), 2);
+            //cv::putText(borderedImage, "m", yEnd, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0), 2);
+            
+            
+            for (int i = origin.x + stepSizeX; i < borderedImage.cols; i += stepSizeX) {
+                std::ostringstream stream;
+                stream << std::fixed << std::setprecision(0) << ((i - origin.x) - width*px_width/2)*X_SCALE/px_width;
+                cv::Point pt(i, origin.y);
+                cv::line(borderedImage, pt, pt - cv::Point(0, 5), cv::Scalar(255, 255, 255), 2);
+                cv::putText(borderedImage, stream.str(), pt + cv::Point(-10, 20),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+            }
+            for (int i = origin.y - stepSizeY; i >= 0; i -= stepSizeY) {
+                std::ostringstream stream;
+                stream << std::fixed << std::setprecision(0) << (origin.y - i)*Y_SCALE;
+                cv::Point pt(origin.x, i);
+                cv::line(borderedImage, pt, pt + cv::Point(5, 0), cv::Scalar(255, 255, 255), 2);
+                cv::putText(borderedImage, stream.str(), pt + cv::Point(-30, 10),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+            }
+
+
+
             // Display the color image
-            imshow("Image", colorImage);
+            imshow("Image", borderedImage);
 
             // Waits 1ms
             waitKey(wait_time);
@@ -528,7 +571,7 @@ class DataAcquisition : public RadarBlock
 
             stop = chrono::high_resolution_clock::now();
             auto duration_set_packet_data = duration_cast<microseconds>(stop - start);
-            std::cout << "Set Packet Data " << duration_set_packet_data.count() << std::endl;*/
+            std::cout << "Set Packet Data " << duration_set_packet_data.count() << std::endl;
         }
 
         // get_packet_num will look at the buffer and return the packet number
