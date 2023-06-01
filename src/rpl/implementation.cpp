@@ -410,3 +410,30 @@ class RangeDoppler : public RadarBlock
             const char *WINDOW_TYPE;
         
 };
+
+class CFAR : public RadarBlock
+{
+    // Variables
+public:
+    CFAR(int guard_range, int noise_range, int guard_doppler, int noise_doppler, int threshold) {
+	cfar_range = reinterpret_cast<float*>(malloc(RANGE_BINS*DOPPLER_BINS*sizeof(float)));
+	cfar_doppler = reinterpret_cast<float*>(malloc(RANGE_BINS*DOPPLER_BINS*sizeof(float)));
+    }
+
+    void process() override {
+	int targets=cfar(rdmap, cfarmap);
+	cfar_indices=cfar_index;
+    }
+
+    
+    
+
+    
+    
+private:
+    float* cfar_range;
+    float* cfar_doppler;
+    float* rdmap;
+    char* cfar_map;
+    std::vector<std::array<int, 2>> cfar_indices;
+}
