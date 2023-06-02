@@ -143,7 +143,8 @@ class Visualizer : public RadarBlock
             image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
         {
             frame = 1;
-            namedWindow("Image");
+            namedWindow("Image",WINDOW_NORMAL);
+            setWindowProperty("Image", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
         }
 
         // Visualizer's process
@@ -204,7 +205,6 @@ class Visualizer : public RadarBlock
 
             // Convert the matrix to a color image for visualization
             applyColorMap(borderedImage, colorImage, COLORMAP_JET);
-
             // Display the color image
             imshow("Image", colorImage);
 
