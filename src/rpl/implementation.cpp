@@ -163,19 +163,20 @@ class Visualizer : public RadarBlock
                 cv::Point origin(borderSize, borderedImage.rows-borderSize);
                 cv::Point xEnd(borderedImage.cols-borderSize, borderedImage.rows-borderSize);
                 cv::Point yEnd(borderSize, borderSize);
+
                 
                 cv::line(borderedImage, origin, xEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 cv::line(borderedImage, origin, yEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 
-                //cv::putText(borderedImage, "m/s", xEnd, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 0, 255), 2);
-                //cv::putText(borderedImage, "m", yEnd, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(0, 255, 0), 2);
+                // cv::putText(borderedImage, "Velocity (m/s)", xLabel, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
+                // cv::putText(borderedImage, "Range (m)", yLabel, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
                 
                 
                 for (int i = origin.x + stepSizeX; i < borderedImage.cols; i += stepSizeX) {
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << ((i - origin.x) - width*px_width/2)*X_SCALE/px_width;
                     cv::Point pt(i, origin.y);
-                    cv::line(borderedImage, pt, pt - cv::Point(0, 5), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
+                    cv::line(borderedImage, pt, pt - cv::Point(0, 5), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 5);
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-10, 20),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
                 }
@@ -183,7 +184,7 @@ class Visualizer : public RadarBlock
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << (origin.y - i)*Y_SCALE;
                     cv::Point pt(origin.x, i);
-                    cv::line(borderedImage, pt, pt + cv::Point(5, 0), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
+                    cv::line(borderedImage, pt, pt + cv::Point(5, 0), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 5);
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-30, 10),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
                 }
