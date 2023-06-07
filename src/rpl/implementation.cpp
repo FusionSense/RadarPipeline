@@ -222,7 +222,7 @@ class Visualizer : public RadarBlock
                     }
                 }
             }
-
+            // cv::Rect roi(100, 100, 200, 200);
             // Convert the matrix to a color image for visualization
             applyColorMap(borderedImage, colorImage, COLORMAP_JET);
             // Display the color image
@@ -475,7 +475,7 @@ class RangeDoppler : public RadarBlock
                 }
             }
             max = 0.0108;
-            min = 0.0075;
+            min = 0.008;
             std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
             
             scale_rdm_values(rdm_avg, max, min);
