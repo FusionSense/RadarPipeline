@@ -128,36 +128,38 @@ class Visualizer : public RadarBlock
     int height = 512;
 
     int px_width = 10;
-    int px_height = 1;
+    int px_height = 2;
 
     float X_SCALE = 0.16;
     float Y_SCALE = 0.035;
     int stepSizeX = 64;
     int stepSizeY = 57;
-    int borderSize = 30;
-    int AXES_COLOR = 175;
+    int borderSize = 60;
+    int borderLeft = 60;
+    int borderBottom = 60;
+    int AXES_COLOR = 169;
     int frame;
 
     public:
         Visualizer(int size_in, int size_out, bool verbose = false) : RadarBlock(size_in, size_out, verbose), 
-            image(px_height * height, px_width * width, CV_8UC1, Scalar(255))
+            image(px_height * height/2, px_width * width, CV_8UC1, Scalar(255))
         {
             frame = 1;
             namedWindow("Image",WINDOW_NORMAL);
             setWindowProperty("Image", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+
         }
 
         // Visualizer's process
         void process() override
         {
             auto start = chrono::high_resolution_clock::now();
-            // 
             
             if(frame <= 1){
-                cv::Scalar borderColor(0, 0, 0); // Green color
+                cv::Scalar borderColor(0, 0, 0); 
 
                 // Add the padded border
-                
+                // TOP | BOTTOM | LEFT | RIGHT
                 cv::copyMakeBorder(image, borderedImage, borderSize, borderSize, borderSize, borderSize,
                                 cv::BORDER_CONSTANT, borderColor);
 
@@ -165,39 +167,57 @@ class Visualizer : public RadarBlock
                 cv::Point xEnd(borderedImage.cols-borderSize, borderedImage.rows-borderSize);
                 cv::Point yEnd(borderSize, borderSize);
 
-                
                 cv::line(borderedImage, origin, xEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 cv::line(borderedImage, origin, yEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 
-                // cv::putText(borderedImage, "Velocity (m/s)", xLabel, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
-                // cv::putText(borderedImage, "Range (m)", yLabel, cv::FONT_HERSHEY_SIMPLEX, 0.3, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
-                
-                
+                std::string label_x = "-           Velocity           +";
+
+                int fontFace = cv::FONT_HERSHEY_SIMPLEX;
+                double fontScale = 1.0;
+                int thickness = 4;
+                int baseline = 0;
+
+                cv::Size textSize = cv::getTextSize(label_x, fontFace, fontScale, thickness, &baseline);
+                //cv::Point textPosition_x((image.cols - textSize.width)/2, image.rows - baseline - 10);
+                //madness begins here
+                cv::Point textPosition_x((borderedImage.cols-textSize.width)/2, borderedImage.rows-10);
+                cv::Point textPosition_r(1, (borderedImage.rows-60)/2);
+                cv::Point textPosition_a(1, (borderedImage.rows-60+(textSize.height+19))/2);
+                cv::Point textPosition_n(1, (borderedImage.rows-60+2*(textSize.height+19))/2);
+                cv::Point textPosition_g(1, (borderedImage.rows-60+3*(textSize.height+19))/2);
+                cv::Point textPosition_e(1, (borderedImage.rows-60+4*(textSize.height+24))/2);
+
+                cv::putText(borderedImage, label_x, textPosition_x, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
+                cv::putText(borderedImage, "R", textPosition_r, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
+                cv::putText(borderedImage, "a", textPosition_a, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
+                cv::putText(borderedImage, "n", textPosition_n, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
+                cv::putText(borderedImage, "g", textPosition_g, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
+                cv::putText(borderedImage, "e", textPosition_e, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 for (int i = origin.x + stepSizeX; i < borderedImage.cols; i += stepSizeX) {
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << ((i - origin.x) - width*px_width/2)*X_SCALE/px_width;
                     cv::Point pt(i, origin.y);
                     cv::line(borderedImage, pt, pt - cv::Point(0, 5), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 5);
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-10, 20),
-                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
+                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 }
                 for (int i = origin.y - stepSizeY; i >= 0; i -= stepSizeY) {
                     std::ostringstream stream;
-                    stream << std::fixed << std::setprecision(0) << (origin.y - i)*Y_SCALE;
+                    stream << std::fixed << std::setprecision(0) << (origin.y - i)*Y_SCALE/2;
                     cv::Point pt(origin.x, i);
                     cv::line(borderedImage, pt, pt + cv::Point(5, 0), cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 5);
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-30, 10),
-                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 1);
+                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 }
-                std::cout<<"BEFORE | FRAME NUMBER: " << to_string(frame) << std::endl;
+
             }
 
-            std::cout<<"AFTER | FRAME NUMBER: " << to_string(frame) << std::endl;
+            //took j to height/2 to height in order to cut Range on RDM in half
             for (int i = 0; i < width; i++) {
-                for (int j = 0; j < height; j++) {
+                for (int j = height/2; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
                         for(int y = 0; y < px_height; y++) {
-                            borderedImage.at<uint8_t>(px_height * j + y + borderSize, px_width * i + x + borderSize) = static_cast<uint8_t>(inputbufferptr[width*height - ((width-1)*height - height * i + j)]);
+                            borderedImage.at<uint8_t>(px_height * (j-height/2) + y + borderSize, px_width * i + x + borderSize) = static_cast<uint8_t>(inputbufferptr[width*(height) - ((width-1)*height - height * i + j)]);
                         }
                     }
                 }
@@ -455,8 +475,8 @@ class RangeDoppler : public RadarBlock
                 }
             }
             max = 0.0108;
-            min = 0.008;
-            //std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
+            min = 0.0075;
+            std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
             
             scale_rdm_values(rdm_avg, max, min);
             fftshift_rdm(rdm_avg);
