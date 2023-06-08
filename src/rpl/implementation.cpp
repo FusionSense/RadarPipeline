@@ -1,6 +1,20 @@
 using namespace std;
 using namespace cv;
 using namespace std::chrono;
+
+#define FAST_TIME 512 //Initializes the number of fast time samples | # of range samples
+#define SLOW_TIME 64 //Initializes the number of slow time samples | # of doppler samples
+#define RX 4        // # of Rx
+#define TX 3        // # of Tx
+#define IQ 2 //Types of IQ (I and Q) 
+#define SIZE_W_IQ TX*RX*FAST_TIME*SLOW_TIME*IQ  // Size of the total number of separate IQ sampels from ONE frame
+#define SIZE TX*RX*FAST_TIME*SLOW_TIME          // Size of the total number of COMPLEX samples from ONE frame
+
+#define BUFFER_SIZE 4096 
+#define PORT        4098
+#define BYTES_IN_PACKET 1456 // Max packet size - sequence number and byte count = 1466-10 
+
+#define IQ_BYTES 2 
 // Base class used for other modules
 class RadarBlock
 {
@@ -193,7 +207,7 @@ class Visualizer : public RadarBlock
                 cv::putText(borderedImage, "n", textPosition_n, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 cv::putText(borderedImage, "g", textPosition_g, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 cv::putText(borderedImage, "e", textPosition_e, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
-                for (int i = origin.x + stepSizeX; i < borderedImage.cols; i += stepSizeX) {
+                for (int i = origin.x; i < borderedImage.cols; i += stepSizeX) {
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << ((i - origin.x) - width*px_width/2)*X_SCALE/px_width;
                     cv::Point pt(i, origin.y);
@@ -201,7 +215,7 @@ class Visualizer : public RadarBlock
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-10, 20),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 }
-                for (int i = origin.y - stepSizeY; i >= 0; i -= stepSizeY) {
+                for (int i = origin.y - borderSize; i >= 0; i -= stepSizeY) {
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << (origin.y - i)*Y_SCALE/2;
                     cv::Point pt(origin.x, i);
@@ -258,17 +272,11 @@ class Visualizer : public RadarBlock
 class RangeDoppler : public RadarBlock
 {
     public:
-        RangeDoppler(int fast_time, int slow_time, int rx, int tx, int iq, const char* win = "blackman") : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+        RangeDoppler(const char* win = "blackman") : RadarBlock(SIZE,SIZE)
         {
             // RANGE DOPPLER PARAMETER INITIALIZATION
-            WINDOW_TYPE = win;          //Determines what type of windowing will be cone
-            FAST_TIME = fast_time;      //Initializes the number of fast time samples | # of range samples
-            SLOW_TIME = slow_time;      //Initializes the number of slow time samples | # of doppler samples
-            RX = rx;    // # of Rx
-            TX = tx;    // # of Tx
-            IQ = iq;    // Equals to 2 as there is both I and Q data
-            SIZE = TX*RX*FAST_TIME*SLOW_TIME;           // Size of the total number of COMPLEX samples from ONE frame
-            SIZE_W_IQ = TX*RX*FAST_TIME*SLOW_TIME*IQ;   // Size of the total number of separate IQ sampels from ONE frame
+            WINDOW_TYPE = win;          //Determines what type of windowing will be done
+            SET_SNR = false;
             adc_data_flat = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));                          // allocate mem for Separate IQ adc data from Data aquisition
             adc_data=reinterpret_cast<std::complex<float>*>(adc_data_flat);                                     // allocate mem for COMPLEX adc data from Data aquisition 
             adc_data_reshaped = reinterpret_cast<float*>(malloc(SIZE_W_IQ*sizeof(float)));                      // allocate mem for reorganized/reshaped adc data
@@ -300,19 +308,19 @@ class RangeDoppler : public RadarBlock
         }
 
         // FILE READING METHODS
-        void readFile(const std::string& filename, float* arr, int size) {      //
+        void readFile(const std::string& filename) {      //
             std::ifstream file(filename);
             if (file.is_open()) {
                 std::string line;
                 
                 int i = 0;
                 while (std::getline(file, line)) {
-                    if(i > size){
+                    if(i > SIZE_W_IQ){
                         std::cerr << "Error: More samples than SIZE " << filename << std::endl;
                         break;
                     }
                     float value = std::stof(line);
-                    arr[i] = value;
+                    adc_data_flat[i] = value;
                     i++;
                 }
                 std::cout << "File Successfully read!" << std::endl;
@@ -320,20 +328,6 @@ class RangeDoppler : public RadarBlock
             } else {
                 std::cerr << "Error: Could not open file " << filename << std::endl;
             }
-        }
-
-        int save_2d_array(float* arr, int width, int length, const char* filename) {
-            std::ofstream outfile(filename);
-            for (int i=0; i<length; i++) {
-                for (int j=0; j<width; j++) {
-                outfile << arr[i*width+j] << " ";
-                }
-                outfile << std::endl;
-            }
-
-            //outfile.close();
-            std::cout << "Array saved to file. " << std::endl;
-            return 0;
         }
 
         int save_1d_array(float* arr, int width, int length, string& filename) {
@@ -346,7 +340,7 @@ class RangeDoppler : public RadarBlock
             std::cout << "Array saved to file. " << std::endl;
             return 0;
         }
-
+        
         // WINDOW TYPES
         void blackman_window(float* arr, int fast_time){
             for(int i = 0; i<fast_time; i++)
@@ -363,6 +357,11 @@ class RangeDoppler : public RadarBlock
                 arr[i] = 1;
         }
         
+        void setSNR(float maxSNR, float minSNR){
+            SET_SNR = true;
+            max = maxSNR;
+            min = minSNR;
+        }
         // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
         void getIndices(int index_1D, int* indices){
             int iq=2;  
@@ -419,6 +418,8 @@ class RangeDoppler : public RadarBlock
             // fill in the matrix with the values scaled to 0-255 range
             for (int i = 0; i < FAST_TIME*SLOW_TIME; i++) {
                 arr[i] = (arr[i] - min_val) / (max_val - min_val) * 255;
+                if (arr[i] < 0)
+                    arr[i] = 0; 
             }
         }
 
@@ -454,18 +455,18 @@ class RangeDoppler : public RadarBlock
             int idx;
             const int VIRT_ANTS = TX*RX;
             const int RD_BINS = SLOW_TIME*FAST_TIME;
-            float max,min;
             for (int i=0; i<(VIRT_ANTS); i++) {
                 for (int j=0; j<(RD_BINS); j++) {
                     idx=i*(RD_BINS)+j;
                     if(i==0)
                         rdm_avg[j] = 0;
                     rdm_avg[j]+=rdm_norm[idx]/((float) RD_BINS);
-                    if(i == (VIRT_ANTS-1)){
+                    if(i == (VIRT_ANTS-1) && !SET_SNR){
                         if (j==0){
                             max = rdm_avg[0];
                             min =  rdm_avg[0];                            
                         }
+
                         if (rdm_avg[j] > max)
                             max = rdm_avg[j];
                         else if(rdm_avg[j] < min)
@@ -474,8 +475,7 @@ class RangeDoppler : public RadarBlock
                     }
                 }
             }
-            max = 0.0108;
-            min = 0.008;
+
             std::cout << "MAX: " << max << "      |        MIN:  " << min << std::endl;
             
             scale_rdm_values(rdm_avg, max, min);
@@ -485,40 +485,29 @@ class RangeDoppler : public RadarBlock
         
         void process() override
         {
-            auto start = chrono::high_resolution_clock::now();
-            // std::cout<< "RDM PROCESS ACTIVATED" << std::endl;
-            for(int i = 0; i<SIZE_W_IQ; i++){
-                adc_data_flat[i] = (float)input[i];
-                // if( i>90 && i<110)
-                    // std::cout<< adc_data_flat[i] << "   |    " << input[i] << std::endl;
-            }
-            // auto start = high_resolution_clock::now();
-            // std::cout << "1: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
+            // auto start = chrono::high_resolution_clock::now();
+            
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
             averaged_rdm(rdm_norm, rdm_avg);
-            // std::cout << "rdm_data = " << rdm_data[100] << "     |       rdm_norm = " << rdm_norm[100] << "   |    rdm_avg = " << rdm_avg[100] << std::endl;
-            // std::cout << "3: IN RDM: First data in frame = " << adc_data_flat[100] << std::endl;
+
             // string str = ("./out") + to_string(frame) + ".txt";
             // save_1d_array(rdm_avg, FAST_TIME, SLOW_TIME, str);
-            // auto stop = high_resolution_clock::now();
-            // auto duration = duration_cast<microseconds>(stop - start);
-            // std::cout << "Elapsed PROCESS time: " << duration.count() << " microseconds" << std::endl;
-            // printf("Range-Doppler map done! \n");
 
-            auto stop = chrono::high_resolution_clock::now();
-            auto duration_rdm_process = duration_cast<microseconds>(stop - start);
-            std::cout << "RDM Process Time " << duration_rdm_process.count() << " microseconds" << std::endl;
+            // auto stop = chrono::high_resolution_clock::now();
+            // auto duration_rdm_process = duration_cast<microseconds>(stop - start);
+            // std::cout << "RDM Process Time " << duration_rdm_process.count() << " microseconds" << std::endl;
         }
 
         private: 
-            int FAST_TIME, SLOW_TIME, RX, TX, IQ, SIZE_W_IQ, SIZE;
             float *adc_data_flat, *rdm_avg, *rdm_norm, *adc_data_reshaped;
             std::complex<float> *rdm_data, *adc_data;
             fftwf_plan plan;
             uint16_t* input;
             const char *WINDOW_TYPE;
+            bool SET_SNR;
+            float max,min;
         
 };
 
@@ -526,20 +515,11 @@ class RangeDoppler : public RadarBlock
 class DataAcquisition : public RadarBlock
 { 
     public:
-        DataAcquisition(int buffer_size, int port, int bytes_in_packet, int fast_time, int slow_time, int rx, int tx, int iq_data, int iq_bytes) : RadarBlock(fast_time*slow_time,fast_time*slow_time)
+        DataAcquisition() : RadarBlock(SIZE,SIZE)
         {
-            BUFFER_SIZE = buffer_size; 
-            PORT = port;
-            BYTES_IN_PACKET = bytes_in_packet;
-            RX = rx;
-            TX = tx;
-            FAST_TIME = fast_time;
-            SLOW_TIME = slow_time;
-            IQ_DATA = iq_data;
-            IQ_BYTES = iq_bytes;
-            SIZE_W_IQ = TX*RX*IQ_DATA*SLOW_TIME*FAST_TIME;
+           
             frame_data = reinterpret_cast<uint16_t*>(malloc(SIZE_W_IQ*sizeof(uint16_t)));
-            BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ_DATA*IQ_BYTES;
+            BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ*IQ_BYTES;
             BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
             PACKETS_IN_FRAME_CLIPPED = BYTES_IN_FRAME / BYTES_IN_PACKET;
             UINT16_IN_PACKET = BYTES_IN_PACKET / 2; //728 entries in packet
@@ -684,12 +664,9 @@ class DataAcquisition : public RadarBlock
         {
 
             auto start = chrono::high_resolution_clock::now();
-            // create buffer array of preset size to hold one packet
-            // buffer[BUFFER_SIZE];
+
             create_bind_socket();
             
-            //auto duration_read_socket = duration_cast<microseconds>(stop - start);
-            //auto duration_set_frame_data = duration_cast<microseconds>(stop - start);
 
             // while true loop to get a single frame of data from UDP 
             // std::cout<< "DAQ PROCESS ACTIVATED" << std::endl;
@@ -697,29 +674,15 @@ class DataAcquisition : public RadarBlock
             //start = chrono::high_resolution_clock::now();
             while (true)
                 {
-                    //std::cout << "Packet Num " << get_packet_num() << std::endl;  //optional 
-                    //rc = poll();
-                    //if (rv == 1)
-                    //{
-                        read_socket();
-                        //start = chrono::high_resolution_clock::now();
-                        set_frame_data();
-                        //stop = chrono::high_resolution_clock::now();
-                        //duration_set_frame_data = duration_cast<microseconds>(stop - start);
-                        //std::cout << "Set Frame Data " << duration_set_frame_data.count() << std::endl;
-                        //std::cout << std::endl;   
-                    //}
-                    // get_byte_count();  //optional
+                    read_socket();
+                    //start = chrono::high_resolution_clock::now();
+                    set_frame_data();
+                    //stop = chrono::high_resolution_clock::now();
+                    //duration_set_frame_data = duration_cast<microseconds>(stop - start);
+                    //std::cout << "Set Frame Data " << duration_set_frame_data.count() << std::endl;
+                    //std::cout << std::endl;   
  
                     if (end_of_frame() == 1){
-                        // printf("End of frame found \n");
-                        // printf("IN DAQ: First data in frame = %d \n", frame_data[100]);
-                        //  for(int i = 91; i<110; i++){
-                        //     std::cout<< frame_data[i] << std::endl;
-                        // }
-                        //stop = chrono::high_resolution_clock::now();
-                        //auto duration_read_write_frame = duration_cast<microseconds>(stop - start);
-
                         //string str = ("./out") + to_string(frame) + ".txt";
                         // save_1d_array(frame_data, FAST_TIME*TX*RX*IQ_DATA, SLOW_TIME, str);
                         packets_read = 0;
@@ -730,13 +693,6 @@ class DataAcquisition : public RadarBlock
                         //stop = chrono::high_resolution_clock::now();
                         //auto duration_close_socket = duration_cast<microseconds>(stop - start);
 
-
-                        //std::cout << "Create Socket " << duration_create_socket.count() << std::endl;
-                        //std::cout << std::endl;
-                        //std::cout << "Read/Write Frame " << duration_read_write_frame.count() << std::endl;
-                        //std::cout << std::endl;
-                        //std::cout << "Close Socket " << duration_close_socket.count() << std::endl;
-                        //std::cout << std::endl;
                         break;
                     }
                 }
@@ -756,8 +712,7 @@ class DataAcquisition : public RadarBlock
 
         }
 
-        private: 
-            int BUFFER_SIZE, PORT, BYTES_IN_PACKET, RX, TX, FAST_TIME, SLOW_TIME, IQ_DATA, IQ_BYTES, SIZE_W_IQ; 
+        private:  
             
             int sockfd;                             // socket file descriptor
             struct sockaddr_in servaddr, cliaddr;   // initialize socket

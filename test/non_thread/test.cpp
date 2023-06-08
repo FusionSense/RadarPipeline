@@ -2,29 +2,20 @@
 #include "../src/rpl/private-header.hpp"
 #define INPUT_SIZE 64 * 512
 #define OUTPUT_SIZE 0
-int main()
+int main(int argc, char* argv[])
 {   
-    int fast_time = 512;
-    int slow_time = 64;
-    int rx = 4;
-    int tx = 3;
-    int iq = 2;
-    int buffer_size = 2048; 
-    int port = 4098; 
-    int bytes_in_packet = 1456; 
-    int iq_bytes = 2;
-    
-    // CONSTRUCTOR INITIATION
-    DataAcquisition daq(buffer_size, port, bytes_in_packet, fast_time, slow_time, rx, tx, iq, iq_bytes);
 
-    RangeDoppler rdm(fast_time,slow_time,rx,tx,iq,"blackman");
+    // CONSTRUCTOR INITIATION
+    DataAcquisition daq;
+
+    RangeDoppler rdm("blackman");
 
     Visualizer vis(INPUT_SIZE,OUTPUT_SIZE);
 
     // BUFFER POINTER INITIATION
     uint16_t *in_bufferptr    = daq.getBufferPointer();
     float    *in_visualizeptr = rdm.getBufferPointer();
-
+    
     rdm.setBufferPointer(in_bufferptr);
     vis.setBufferPointer(in_visualizeptr);
 
@@ -34,24 +25,17 @@ int main()
     auto frame_rdm = rdm.getFramePointer();
     daq.setFramePointer(frame_rdm);
     // OTHER PARAMS
-    // daq.create_bind_socket(); // open the socket for listening
+    if (argc > 1){
+        if(argc != 3){
+            std::cout << "Incorrect number of arguments, format should be : \n    --> ./test max_SNR_THRESHOLD min_SNR_THRESHOLD \n OR --> ./test" << std::endl;
+            return 1;
+        }
+        float max = std::stof(argv[1]);
+        float min = std::stof(argv[2]);
+        rdm.setSNR(max,min);
+    }
     vis.setWaitTime(1);   
 
-    //std::cout << "FRAME --> DAQ: " << *frame_daq << std::endl;
-    //std::cout << "FRAME --> RDM: "<< *frame_rdm << std::endl;
-    // std::cout << "FRAME --> VIS: "<< *frame_vis << std::endl;
-
-    // thread daqThread(&DataAcquisition::iteration, &daq);
-    // thread rdmThread(&RangeDoppler::iteration, &rdm);
-    // thread visThread(&Visualizer::iteration, &vis);
-
-    //daq.close_socket();
-
-    //std::cout << "Test Complete!" << std::endl;
-
-    // daqThread.join();
-    // rdmThread.join();
-    // visThread.join();
     rdm.process();
 
     while(true){

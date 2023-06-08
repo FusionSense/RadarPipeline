@@ -2,32 +2,40 @@
 #include "../src/rpl/private-header.hpp"
 #define INPUT_SIZE 64 * 512
 #define OUTPUT_SIZE 0
-int main()
+int main(int argc, char* argv[])
 {   
-    int fast_time = 512;
-    int slow_time = 64;
-    int rx = 4;
-    int tx = 3;
-    int iq = 2;
+    // Create the Range Doppler Map Object
+    RangeDoppler rdm("blackman");
     
-    while(true){
-        // Create the Range Doppler Map Object
-        RangeDoppler rdm(fast_time,slow_time,rx,tx,iq,"blackman");
+    if (argc > 1){
+        if(argc != 3){
+            std::cout << "Incorrect number of arguments, format should be : \n    --> ./test max_SNR_THRESHOLD min_SNR_THRESHOLD \n OR --> ./test" << std::endl;
+            return 1;
+        }
         
-        // Activate the process block which reads from a text data file and computes the range doppler map.
-        rdm.process("../data/adc_data/out_DAQ.txt"); 
-        
-        // Receive the pointer to the range doppler map.
-        float* in_bufferptr = rdm.getVisualizePointer();
-        // Initialize the Visualizer Class
-        Visualizer rdmplot(INPUT_SIZE,OUTPUT_SIZE); 
-        
-        // Set the input pointer from the range doppler object to the visualizer object
-        rdmplot.setBufferPointer(in_bufferptr);
-
-        // Plot the range doppler map.
-        rdmplot.process();
+        float max = std::stof(argv[1]);
+        float min = std::stof(argv[2]);
+        rdm.setSNR(max,min);
     }
+
+    rdm.readFile("../data/adc_data/out_DAQ.txt");
+
+    // Activate the process block which reads from a text data file and computes the range doppler map.
+    rdm.process(); 
+    
+    // Receive the pointer to the range doppler map.
+    float* in_bufferptr = rdm.getBufferPointer();
+
+    // Initialize the Visualizer Class
+    Visualizer rdmplot(INPUT_SIZE,OUTPUT_SIZE); 
+    
+    // Set the input pointer from the range doppler object to the visualizer object
+    rdmplot.setBufferPointer(in_bufferptr);
+    rdmplot.setWaitTime(0);
+
+    // Plot the range doppler map.
+    rdmplot.process();
+    
     std::cout << "Test Complete!" << std::endl;
 
     return 0;
