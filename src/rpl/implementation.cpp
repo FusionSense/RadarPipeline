@@ -134,6 +134,7 @@ class RadarBlock
         }
 };
 
+// 1024 x 600
 // Visualizes range-doppler data
 class Visualizer : public RadarBlock
 {
@@ -149,7 +150,8 @@ class Visualizer : public RadarBlock
     int stepSizeX = 64;
     int stepSizeY = 57;
     int borderSize = 60;
-    int borderLeft = 60;
+    int borderLeft = 220;
+    int borderRight = borderLeft;
     int borderBottom = 60;
     int AXES_COLOR = 169;
     int frame;
@@ -174,13 +176,12 @@ class Visualizer : public RadarBlock
 
                 // Add the padded border
                 // TOP | BOTTOM | LEFT | RIGHT
-                cv::copyMakeBorder(image, borderedImage, borderSize, borderSize, borderSize, borderSize,
+                cv::copyMakeBorder(image, borderedImage, borderSize, borderSize, borderLeft, borderRight,
                                 cv::BORDER_CONSTANT, borderColor);
 
-                cv::Point origin(borderSize, borderedImage.rows-borderSize);
-                cv::Point xEnd(borderedImage.cols-borderSize, borderedImage.rows-borderSize);
-                cv::Point yEnd(borderSize, borderSize);
-
+                cv::Point xEnd(borderedImage.cols-borderLeft, borderedImage.rows-borderSize);
+                cv::Point yEnd(borderLeft, borderSize);
+                cv::Point origin(borderLeft, borderedImage.rows-borderSize);
                 cv::line(borderedImage, origin, xEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 cv::line(borderedImage, origin, yEnd, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 
@@ -195,11 +196,11 @@ class Visualizer : public RadarBlock
                 //cv::Point textPosition_x((image.cols - textSize.width)/2, image.rows - baseline - 10);
                 //madness begins here
                 cv::Point textPosition_x((borderedImage.cols-textSize.width)/2, borderedImage.rows-10);
-                cv::Point textPosition_r(1, (borderedImage.rows-60)/2);
-                cv::Point textPosition_a(1, (borderedImage.rows-60+(textSize.height+19))/2);
-                cv::Point textPosition_n(1, (borderedImage.rows-60+2*(textSize.height+19))/2);
-                cv::Point textPosition_g(1, (borderedImage.rows-60+3*(textSize.height+19))/2);
-                cv::Point textPosition_e(1, (borderedImage.rows-60+4*(textSize.height+24))/2);
+                cv::Point textPosition_r(borderLeft - 65, (borderedImage.rows-60)/2);
+                cv::Point textPosition_a(borderLeft - 65, (borderedImage.rows-60+(textSize.height+20))/2);
+                cv::Point textPosition_n(borderLeft - 65, (borderedImage.rows-60+2*(textSize.height+20))/2);
+                cv::Point textPosition_g(borderLeft - 65, (borderedImage.rows-60+3*(textSize.height+20))/2);
+                cv::Point textPosition_e(borderLeft - 65, (borderedImage.rows-60+4*(textSize.height+24))/2);
 
                 cv::putText(borderedImage, label_x, textPosition_x, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 cv::putText(borderedImage, "R", textPosition_r, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
@@ -207,7 +208,8 @@ class Visualizer : public RadarBlock
                 cv::putText(borderedImage, "n", textPosition_n, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 cv::putText(borderedImage, "g", textPosition_g, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
                 cv::putText(borderedImage, "e", textPosition_e, fontFace, fontScale, cv::Scalar(169, 169, 169), thickness);
-                for (int i = origin.x; i < borderedImage.cols; i += stepSizeX) {
+
+                for (int i = origin.x; i <= borderedImage.cols - borderRight; i += stepSizeX) {
                     std::ostringstream stream;
                     stream << std::fixed << std::setprecision(0) << ((i - origin.x) - width*px_width/2)*X_SCALE/px_width;
                     cv::Point pt(i, origin.y);
@@ -223,20 +225,25 @@ class Visualizer : public RadarBlock
                     cv::putText(borderedImage, stream.str(), pt + cv::Point(-30, 10),
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(AXES_COLOR, AXES_COLOR, AXES_COLOR), 2);
                 }
-
             }
-
+            int half_offset = 0;
+            if(false)
+                half_offset = height/2;
+            
             //took j to height/2 to height in order to cut Range on RDM in half
             for (int i = 0; i < width; i++) {
                 for (int j = height/2; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
                         for(int y = 0; y < px_height; y++) {
-                            borderedImage.at<uint8_t>(px_height * (j-height/2) + y + borderSize, px_width * i + x + borderSize) = static_cast<uint8_t>(inputbufferptr[width*(height) - ((width-1)*height - height * i + j)]);
+                            borderedImage.at<uint8_t>(px_height * (j-height/2) + y + borderSize, px_width * i + x + borderLeft) = static_cast<uint8_t>(inputbufferptr[width*(height) - ((width-1)*height - height * i + j)]);
                         }
                     }
                 }
             }
-            // cv::Rect roi(100, 100, 200, 200);
+
+       
+            // cv::Rect roi(borderLeft, borderedImage.row - borderSize, px_width*width, px_height*height);
+            // cv::Mat roiImage = borderedImage(roi);
             // Convert the matrix to a color image for visualization
             applyColorMap(borderedImage, colorImage, COLORMAP_JET);
             // Display the color image
