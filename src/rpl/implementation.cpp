@@ -10,7 +10,7 @@ using namespace std::chrono;
 #define SIZE_W_IQ TX*RX*FAST_TIME*SLOW_TIME*IQ  // Size of the total number of separate IQ sampels from ONE frame
 #define SIZE TX*RX*FAST_TIME*SLOW_TIME          // Size of the total number of COMPLEX samples from ONE frame
 
-#define BUFFER_SIZE 4096 
+#define BUFFER_SIZE 2048 
 #define PORT        4098
 #define BYTES_IN_PACKET 1456 // Max packet size - sequence number and byte count = 1466-10 
 
@@ -364,7 +364,6 @@ class RangeDoppler : public RadarBlock
         }
         // output indices --> {IQ, FAST_TIME, SLOW_TIME, RX, TX}
         void getIndices(int index_1D, int* indices){
-            int iq=2;  
             int i0 = index_1D/(RX*IQ*FAST_TIME*TX);
             int i1 = index_1D%(RX*IQ*FAST_TIME*TX);
             int i2 = i1%(RX*IQ*FAST_TIME);
@@ -455,6 +454,9 @@ class RangeDoppler : public RadarBlock
             int idx;
             const int VIRT_ANTS = TX*RX;
             const int RD_BINS = SLOW_TIME*FAST_TIME;
+            if(!SET_SNR){
+                float max, min;
+            }
             for (int i=0; i<(VIRT_ANTS); i++) {
                 for (int j=0; j<(RD_BINS); j++) {
                     idx=i*(RD_BINS)+j;
@@ -486,7 +488,9 @@ class RangeDoppler : public RadarBlock
         void process() override
         {
             // auto start = chrono::high_resolution_clock::now();
-            
+            for(int i = 0; i<SIZE_W_IQ; i++){
+                adc_data_flat[i] = (float)input[i];
+            }
             shape_cube(adc_data_flat, adc_data_reshaped, adc_data);
             compute_range_doppler();
             compute_mag_norm(rdm_data, rdm_norm);
@@ -517,7 +521,7 @@ class DataAcquisition : public RadarBlock
     public:
         DataAcquisition() : RadarBlock(SIZE,SIZE)
         {
-           
+            
             frame_data = reinterpret_cast<uint16_t*>(malloc(SIZE_W_IQ*sizeof(uint16_t)));
             BYTES_IN_FRAME = SLOW_TIME*FAST_TIME*RX*TX*IQ*IQ_BYTES;
             BYTES_IN_FRAME_CLIPPED = BYTES_IN_FRAME/BYTES_IN_PACKET*BYTES_IN_PACKET;
@@ -526,9 +530,7 @@ class DataAcquisition : public RadarBlock
             UINT16_IN_FRAME = BYTES_IN_FRAME / 2;
             packets_read = 0;
             buffer=reinterpret_cast<char*>(malloc(BUFFER_SIZE*sizeof(char)));
-            packet_data=reinterpret_cast<uint16_t*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));
-
-            
+            packet_data=reinterpret_cast<uint16_t*>(malloc(UINT16_IN_PACKET*sizeof(uint16_t)));     
         }
 
         // create_bind_socket - returns a socket object titled sockfd

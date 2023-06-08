@@ -37,13 +37,11 @@ int main(int argc, char* argv[])
     vis.setWaitTime(1);   
 
     rdm.process();
-
-    while(true){
     
+    while(true){
         daq.process();
         rdm.process();
         vis.process();
-
     }
 
     return 0;
