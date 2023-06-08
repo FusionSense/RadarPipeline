@@ -232,7 +232,7 @@ class Visualizer : public RadarBlock
             
             //took j to height/2 to height in order to cut Range on RDM in half
             for (int i = 0; i < width; i++) {
-                for (int j = height/2; j < height; j++) {
+                for (int j = half_offset; j < height; j++) {
                     for(int x = 0; x < px_width; x++) {
                         for(int y = 0; y < px_height; y++) {
                             borderedImage.at<uint8_t>(px_height * (j-height/2) + y + borderSize, px_width * i + x + borderLeft) = static_cast<uint8_t>(inputbufferptr[width*(height) - ((width-1)*height - height * i + j)]);
