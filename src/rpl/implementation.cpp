@@ -227,7 +227,7 @@ class Visualizer : public RadarBlock
                 }
             }
             int half_offset = 0;
-            if(false)
+            if(true)
                 half_offset = height/2;
             
             //took j to height/2 to height in order to cut Range on RDM in half
