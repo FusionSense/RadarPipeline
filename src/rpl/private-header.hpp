@@ -18,8 +18,7 @@
 #include <cmath>
 #include <fftw3.h>
 #include <fstream>
-#include SERVER_PARAMS
-#include CLIENT_PARAMS
+
 #define SA struct sockaddr
 #include <iostream>
 #include <cstring>
@@ -27,26 +26,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fstream>
-#include "implementation.cpp"
 #include <thread>
-
 #include <iostream>
 #include <thread>
 
-#define FAST_TIME 9
-#define SLOW_TIME 2
-#define RX 4
-#define TX 3
-#define IQ 2
-#define SIZE_W_IQ TX*RX*FAST_TIME*SLOW_TIME*IQ
-#define SIZE TX*RX*FAST_TIME*SLOW_TIME
-
-#define BUFFER_SIZE 4096 
-#define PORT        4098
-#define BYTES_IN_PACKET 1456 // Max packet size - sequence number and byte count = 1466-10 
-#define NUM_RX 4
-#define NUM_TX 3
-#define FAST_TIME 512 //ADC Samples
-#define SLOW_TIME 64 //Chirps
-#define IQ_DATA 2 //Types of IQ (I and Q)
-#define IQ_BYTES 2 
+#include "implementation.cpp"
